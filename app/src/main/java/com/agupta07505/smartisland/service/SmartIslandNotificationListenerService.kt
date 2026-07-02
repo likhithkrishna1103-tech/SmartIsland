@@ -14,9 +14,20 @@ import androidx.core.graphics.drawable.toBitmap
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
 import com.agupta07505.smartisland.model.IslandNotificationAction
+import java.lang.ref.WeakReference
 
 class SmartIslandNotificationListenerService : NotificationListenerService() {
     private val suppressedKeys = mutableSetOf<String>()
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = WeakReference(this)
+    }
+
+    override fun onDestroy() {
+        if (instance?.get() == this) instance = null
+        super.onDestroy()
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         runCatching { handleNotificationPosted(sbn) }
@@ -184,4 +195,17 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         val durationMs: Long?,
         val isPlaying: Boolean
     )
+
+    companion object {
+        private var instance: WeakReference<SmartIslandNotificationListenerService>? = null
+
+        fun cancelSystemNotification(key: String) {
+            val service = instance?.get()
+            if (service != null) {
+                runCatching {
+                    service.cancelNotification(key)
+                }
+            }
+        }
+    }
 }

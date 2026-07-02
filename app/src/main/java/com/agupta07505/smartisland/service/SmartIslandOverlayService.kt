@@ -321,6 +321,8 @@ class SmartIslandOverlayService : LifecycleService() {
                 }
             }
         }
+        removeNotification(notification.key)
+        SmartIslandNotificationListenerService.cancelSystemNotification(notification.key)
         collapse()
     }
 

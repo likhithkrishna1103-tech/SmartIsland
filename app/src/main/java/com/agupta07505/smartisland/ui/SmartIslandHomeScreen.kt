@@ -22,6 +22,8 @@ import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedButton
@@ -152,6 +154,43 @@ fun SmartIslandHomeScreen() {
                 notificationGranted = isNotificationListenerEnabled(context)
             }
         )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.VisibilityOff,
+                    contentDescription = null,
+                    tint = Color(0xFF667085)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "Overlay system warning", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "Redirect to notification settings to hide the \"displaying over other apps\" alert.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF5C6675)
+                    )
+                }
+                Button(onClick = {
+                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, "android")
+                    }
+                    runCatching { context.startActivity(intent) }
+                }) {
+                    Text("Hide")
+                }
+            }
+        }
 
         SettingsCard(settings = settings, repository = repository)
 

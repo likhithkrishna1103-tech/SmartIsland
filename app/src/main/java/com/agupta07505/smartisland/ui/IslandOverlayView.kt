@@ -7,11 +7,15 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,6 +57,14 @@ fun IslandOverlayView(
         dampingRatio = 0.7f,
         stiffness = 300f
     )
+    val sizeSpecInt = spring<androidx.compose.ui.unit.IntSize>(
+        dampingRatio = 0.7f,
+        stiffness = 300f
+    )
+    val sizeSpecFloat = spring<Float>(
+        dampingRatio = 0.7f,
+        stiffness = 300f
+    )
     val alphaSpec = tween<Float>(
         durationMillis = 280,
         easing = FastOutSlowInEasing
@@ -60,9 +72,6 @@ fun IslandOverlayView(
 
     val width by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandWidth") {
         if (it) expandedWidth else settings.width.dp
-    }
-    val height by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandHeight") {
-        if (it) (160.dp + statusBarHeight.dp) else settings.height.dp
     }
     val radius by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandRadius") {
         if (it) 34.dp else settings.cornerRadius.dp
@@ -80,6 +89,20 @@ fun IslandOverlayView(
         label = "expandedAlpha"
     ) {
         if (it) 1f else 0f
+    }
+
+    val contentScale by transition.animateFloat(
+        transitionSpec = { sizeSpecFloat },
+        label = "contentScale"
+    ) {
+        if (it) 1f else 0.92f
+    }
+
+    val contentSlideY by transition.animateDp(
+        transitionSpec = { sizeSpec },
+        label = "contentSlideY"
+    ) {
+        if (it) 0.dp else (-12).dp
     }
 
     val activeNotification = notifications.getOrNull(selectedIndex)
@@ -100,7 +123,15 @@ fun IslandOverlayView(
         // Inner Box: The actual visible pill container (no background here so that top status bar region is transparent)
         Box(
             modifier = Modifier
-                .size(width = width, height = height)
+                .width(width)
+                .then(
+                    if (expanded) {
+                        Modifier.heightIn(max = 160.dp + statusBarHeight.dp)
+                    } else {
+                        Modifier.height(settings.height.dp)
+                    }
+                )
+                .animateContentSize(animationSpec = sizeSpecInt)
                 .pointerInput(Unit) {
                     detectTapGestures {
                         SmartIslandOverlayService.resetTimer()
@@ -112,7 +143,11 @@ fun IslandOverlayView(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer { alpha = collapsedAlpha }
+                        .graphicsLayer {
+                            alpha = collapsedAlpha
+                            scaleX = collapsedAlpha * 0.1f + 0.9f
+                            scaleY = collapsedAlpha * 0.1f + 0.9f
+                        }
                         .clip(RoundedCornerShape(radius))
                         .background(Color.Black)
                 ) {
@@ -127,7 +162,12 @@ fun IslandOverlayView(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer { alpha = expandedAlpha }
+                        .graphicsLayer {
+                            alpha = expandedAlpha
+                            scaleX = contentScale
+                            scaleY = contentScale
+                            translationY = contentSlideY.toPx()
+                        }
                 ) {
                     IslandExpandedContent(
                         notifications = notifications,

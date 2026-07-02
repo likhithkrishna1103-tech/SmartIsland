@@ -11,8 +11,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -44,7 +47,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import com.agupta07505.smartisland.service.SmartIslandOverlayService
+import com.agupta07505.smartisland.service.SmartIslandNotificationListenerService
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,12 +77,12 @@ fun IslandExpandedContent(
     modifier: Modifier = Modifier
 ) {
     if (notifications.isEmpty()) {
-        Column(modifier = modifier.fillMaxSize()) {
+        Column(modifier = modifier.fillMaxWidth().wrapContentHeight()) {
             Spacer(modifier = Modifier.height(statusBarHeight))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .wrapContentHeight()
                     .clip(RoundedCornerShape(34.dp))
                     .background(Color.Black)
             ) {
@@ -85,6 +91,9 @@ fun IslandExpandedContent(
         }
         return
     }
+
+    val density = LocalDensity.current
+    var pageHeights by remember { mutableStateOf(emptyMap<Int, Dp>()) }
 
     val pagerState = rememberPagerState(
         initialPage = selectedIndex.coerceIn(0, notifications.lastIndex),
@@ -105,39 +114,75 @@ fun IslandExpandedContent(
 
     val bottomPadding = if (notifications.size > 1) 24.dp else 14.dp
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxWidth().wrapContentHeight()) {
         Spacer(modifier = Modifier.height(statusBarHeight))
-        
+
+        // Interpolate height between pages based on swipe progress
+        val currentPage = pagerState.currentPage
+        val offsetFraction = pagerState.currentPageOffsetFraction
+        val currentPageHeight = pageHeights[currentPage]
+        val targetHeight = if (currentPageHeight != null) {
+            val nextPage = if (offsetFraction > 0f) {
+                (currentPage + 1).coerceAtMost(notifications.lastIndex)
+            } else if (offsetFraction < 0f) {
+                (currentPage - 1).coerceAtLeast(0)
+            } else {
+                currentPage
+            }
+            val nextHeight = pageHeights[nextPage] ?: currentPageHeight
+            val fraction = kotlin.math.abs(offsetFraction)
+            currentPageHeight + (nextHeight - currentPageHeight) * fraction
+        } else {
+            null
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .then(
+                    if (targetHeight != null) Modifier.height(targetHeight) else Modifier.wrapContentHeight()
+                )
                 .clip(RoundedCornerShape(34.dp))
                 .background(Color.Black)
         ) {
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // unbounded = true: pages measure at natural height even when parent Box has explicit height
+                    .wrapContentHeight(unbounded = true)
             ) { page ->
                 val notification = notifications.getOrNull(page)
                 if (notification != null) {
-                    when (notification.mode) {
-                        IslandMode.Notification -> NotificationExpanded(
-                            notification = notification,
-                            bottomPadding = bottomPadding,
-                            onOpenNotification = { onOpenNotification(notification) },
-                            onCollapse = onCollapse
-                        )
-                        IslandMode.IncomingCall -> IncomingCallExpanded(
-                            notification = notification,
-                            bottomPadding = bottomPadding,
-                            onCollapse = onCollapse
-                        )
-                        IslandMode.Music -> MusicExpanded(
-                            notification = notification,
-                            bottomPadding = bottomPadding
-                        )
-                        IslandMode.Empty -> EmptyExpanded()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight()
+                            .onSizeChanged { size ->
+                                val heightDp = with(density) { size.height.toDp() }
+                                if (pageHeights[page] != heightDp) {
+                                    pageHeights = pageHeights.toMutableMap().apply { put(page, heightDp) }
+                                }
+                            }
+                    ) {
+                        when (notification.mode) {
+                            IslandMode.Notification -> NotificationExpanded(
+                                notification = notification,
+                                bottomPadding = bottomPadding,
+                                onOpenNotification = { onOpenNotification(notification) },
+                                onCollapse = onCollapse
+                            )
+                            IslandMode.IncomingCall -> IncomingCallExpanded(
+                                notification = notification,
+                                bottomPadding = bottomPadding,
+                                onCollapse = onCollapse
+                            )
+                            IslandMode.Music -> MusicExpanded(
+                                notification = notification,
+                                bottomPadding = bottomPadding
+                            )
+                            IslandMode.Empty -> EmptyExpanded()
+                        }
                     }
                 }
             }
@@ -173,7 +218,8 @@ fun IslandExpandedContent(
 private fun EmptyExpanded() {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .wrapContentHeight()
             .padding(start = 18.dp, top = 20.dp, end = 18.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.Center
     ) {
@@ -192,9 +238,10 @@ private fun NotificationExpanded(
     val context = LocalContext.current
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .wrapContentHeight()
             .padding(start = 18.dp, top = 20.dp, end = 18.dp, bottom = bottomPadding),
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -267,12 +314,14 @@ private fun NotificationExpanded(
                                 .height(28.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(Color(0xFFE2E8F0)) // light grey background matching the Telegram button
-                                .clickable {
+                                .bounceClick {
                                     if (action.pendingIntent != null) {
                                         triggerAction(context, notification.packageName, action.pendingIntent, action.title, notification.contentIntent)
                                     } else {
                                         Toast.makeText(context, "Clicked: ${action.title}", Toast.LENGTH_SHORT).show()
                                     }
+                                    SmartIslandOverlayService.removeNotification(notification.key)
+                                    SmartIslandNotificationListenerService.cancelSystemNotification(notification.key)
                                     onCollapse()
                                 }
                                 .padding(horizontal = 12.dp),
@@ -297,7 +346,7 @@ private fun NotificationExpanded(
                     .size(24.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF222222))
-                    .clickable { onOpenNotification() },
+                    .bounceClick { onOpenNotification() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -320,7 +369,8 @@ private fun IncomingCallExpanded(
     val context = LocalContext.current
     Row(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .wrapContentHeight()
             .padding(start = 18.dp, top = 20.dp, end = 12.dp, bottom = bottomPadding),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -387,7 +437,8 @@ private fun MusicExpanded(
     }
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .wrapContentHeight()
             .padding(start = 18.dp, top = 20.dp, end = 18.dp, bottom = bottomPadding)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -440,18 +491,35 @@ private fun MusicExpanded(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { notification.sendFirstAction(context, "previous", "prev", "rewind") }) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .bounceClick { notification.sendFirstAction(context, "previous", "prev", "rewind") },
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(Icons.Rounded.SkipPrevious, contentDescription = null, tint = Color.White)
             }
-            IconButton(onClick = { notification.sendFirstAction(context, "play", "pause", "resume") }) {
+            Spacer(Modifier.width(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .bounceClick { notification.sendFirstAction(context, "play", "pause", "resume") },
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
-                    if (notification?.mediaIsPlaying == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    imageVector = if (notification?.mediaIsPlaying == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(38.dp)
                 )
             }
-            IconButton(onClick = { notification.sendFirstAction(context, "next", "skip", "forward") }) {
+            Spacer(Modifier.width(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .bounceClick { notification.sendFirstAction(context, "next", "skip", "forward") },
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(Icons.Rounded.SkipNext, contentDescription = null, tint = Color.White)
             }
         }
@@ -469,7 +537,7 @@ private fun CircleActionButton(
             .size(52.dp)
             .clip(CircleShape)
             .background(color)
-            .clickable(onClick = onClick),
+            .bounceClick(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
@@ -482,6 +550,10 @@ private fun IslandNotification?.sendFirstAction(context: Context, vararg keyword
     } ?: return
     if (action.pendingIntent != null) {
         triggerAction(context, this.packageName, action.pendingIntent, action.title, this.contentIntent)
+        if (this.mode != IslandMode.Music) {
+            SmartIslandOverlayService.removeNotification(this.key)
+            SmartIslandNotificationListenerService.cancelSystemNotification(this.key)
+        }
         SmartIslandOverlayService.resetTimer()
     }
 }
