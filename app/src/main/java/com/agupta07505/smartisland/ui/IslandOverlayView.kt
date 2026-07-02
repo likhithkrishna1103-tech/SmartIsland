@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.agupta07505.smartisland.data.SmartIslandSettings
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
+import com.agupta07505.smartisland.service.SmartIslandOverlayService
 
 @Composable
 fun IslandOverlayView(
@@ -100,6 +101,11 @@ fun IslandOverlayView(
         Box(
             modifier = Modifier
                 .size(width = width, height = height)
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        SmartIslandOverlayService.resetTimer()
+                    }
+                }
         ) {
             // Collapsed content layer (purely visual, no gesture handlers)
             if (collapsedAlpha > 0f) {

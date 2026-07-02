@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
+import com.agupta07505.smartisland.service.SmartIslandOverlayService
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -481,6 +482,7 @@ private fun IslandNotification?.sendFirstAction(context: Context, vararg keyword
     } ?: return
     if (action.pendingIntent != null) {
         triggerAction(context, this.packageName, action.pendingIntent, action.title, this.contentIntent)
+        SmartIslandOverlayService.resetTimer()
     }
 }
 

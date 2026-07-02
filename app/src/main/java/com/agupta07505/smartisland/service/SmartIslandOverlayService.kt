@@ -71,7 +71,9 @@ class SmartIslandOverlayService : LifecycleService() {
             expandedState.collect { expanded ->
                 if (expanded) {
                     updateWindowLayoutParams(true, settingsState.value)
+                    startAutoCollapseTimer()
                 } else {
+                    stopAutoCollapseTimer()
                     // Delay window resizing to allow the collapse animation to play out smoothly
                     // in the transparent expanded window before wrapping.
                     kotlinx.coroutines.delay(500)
@@ -140,6 +142,27 @@ class SmartIslandOverlayService : LifecycleService() {
         if (expandedState.value) collapse() else expand()
     }
 
+    private var autoCollapseJob: kotlinx.coroutines.Job? = null
+
+    private fun startAutoCollapseTimer() {
+        autoCollapseJob?.cancel()
+        autoCollapseJob = lifecycleScope.launch {
+            kotlinx.coroutines.delay(5000)
+            collapse()
+        }
+    }
+
+    private fun stopAutoCollapseTimer() {
+        autoCollapseJob?.cancel()
+        autoCollapseJob = null
+    }
+
+    fun resetAutoCollapseTimer() {
+        if (expandedState.value) {
+            startAutoCollapseTimer()
+        }
+    }
+
     private fun updateWindowLayoutParams(expanded: Boolean, settings: SmartIslandSettings) {
         val view = islandView ?: return
         val displayMetrics = resources.displayMetrics
@@ -149,12 +172,12 @@ class SmartIslandOverlayService : LifecycleService() {
         // Always use explicit pixel dimensions so the touch target is rock-solid.
         // We add padding when collapsed (+48dp width, +36dp height) to act as a highly forgiving touch target.
         val w = if (expanded) {
-            (displayMetrics.widthPixels * 0.95f).toInt()
+            WindowManager.LayoutParams.MATCH_PARENT
         } else {
             ((settings.width + 48f) * density).toInt()
         }
         val h = if (expanded) {
-            ((160f + statusBarHeight) * density).toInt()
+            WindowManager.LayoutParams.MATCH_PARENT
         } else {
             ((settings.height + 36f) * density).toInt()
         }
@@ -269,6 +292,7 @@ class SmartIslandOverlayService : LifecycleService() {
         if (index in list.indices) {
             selectedIndexState.value = index
             updateActiveMode()
+            resetAutoCollapseTimer()
         }
     }
 
@@ -383,6 +407,10 @@ class SmartIslandOverlayService : LifecycleService() {
 
         fun showDemo(mode: IslandMode) {
             instance?.get()?.showDemoMode(mode)
+        }
+
+        fun resetTimer() {
+            instance?.get()?.resetAutoCollapseTimer()
         }
     }
 }
