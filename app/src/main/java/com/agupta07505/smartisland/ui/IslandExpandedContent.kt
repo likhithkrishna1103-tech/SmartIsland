@@ -65,6 +65,7 @@ fun IslandExpandedContent(
     selectedIndex: Int,
     onPageSelected: (Int) -> Unit,
     onOpenNotification: (IslandNotification) -> Unit,
+    onCollapse: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (notifications.isEmpty()) {
@@ -112,11 +113,13 @@ fun IslandExpandedContent(
                     IslandMode.Notification -> NotificationExpanded(
                         notification = notification,
                         bottomPadding = bottomPadding,
-                        onOpenNotification = { onOpenNotification(notification) }
+                        onOpenNotification = { onOpenNotification(notification) },
+                        onCollapse = onCollapse
                     )
                     IslandMode.IncomingCall -> IncomingCallExpanded(
                         notification = notification,
-                        bottomPadding = bottomPadding
+                        bottomPadding = bottomPadding,
+                        onCollapse = onCollapse
                     )
                     IslandMode.Music -> MusicExpanded(
                         notification = notification,
@@ -179,7 +182,8 @@ private fun EmptyExpanded() {
 private fun NotificationExpanded(
     notification: IslandNotification?,
     bottomPadding: Dp,
-    onOpenNotification: () -> Unit
+    onOpenNotification: () -> Unit,
+    onCollapse: () -> Unit
 ) {
     val context = LocalContext.current
     Column(
@@ -225,7 +229,7 @@ private fun NotificationExpanded(
                 Text(
                     text = notification?.text?.takeIf { it.isNotBlank() } ?: "New activity",
                     color = Color(0xFFD5DAE0),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     fontSize = 13.sp
                 )
@@ -274,6 +278,7 @@ private fun NotificationExpanded(
                                     } else {
                                         Toast.makeText(context, "Clicked: ${action.title}", Toast.LENGTH_SHORT).show()
                                     }
+                                    onCollapse()
                                 }
                                 .padding(horizontal = 12.dp),
                             contentAlignment = Alignment.Center
@@ -305,7 +310,8 @@ private fun NotificationExpanded(
 @Composable
 private fun IncomingCallExpanded(
     notification: IslandNotification?,
-    bottomPadding: Dp
+    bottomPadding: Dp,
+    onCollapse: () -> Unit
 ) {
     val context = LocalContext.current
     Row(
@@ -327,12 +333,18 @@ private fun IncomingCallExpanded(
         CircleActionButton(
             color = Color(0xFFE11D48),
             icon = Icons.Rounded.Close,
-            onClick = { notification.sendFirstAction(context, "decline", "reject", "hang", "end") }
+            onClick = { 
+                notification.sendFirstAction(context, "decline", "reject", "hang", "end") 
+                onCollapse()
+            }
         )
         CircleActionButton(
             color = Color(0xFF79C943),
             icon = Icons.Rounded.Call,
-            onClick = { notification.sendFirstAction(context, "answer", "accept") }
+            onClick = { 
+                notification.sendFirstAction(context, "answer", "accept") 
+                onCollapse()
+            }
         )
     }
 }

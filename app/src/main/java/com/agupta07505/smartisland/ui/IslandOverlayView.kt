@@ -126,7 +126,8 @@ fun IslandOverlayView(
                         notifications = notifications,
                         selectedIndex = selectedIndex,
                         onPageSelected = onPageSelected,
-                        onOpenNotification = onOpenNotification
+                        onOpenNotification = onOpenNotification,
+                        onCollapse = onToggleExpanded
                     )
                 }
             }
