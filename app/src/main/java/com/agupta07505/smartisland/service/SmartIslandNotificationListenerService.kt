@@ -2,19 +2,30 @@ package com.agupta07505.smartisland.service
 
 import android.app.Notification
 import android.graphics.Bitmap
+import android.graphics.drawable.Icon
+import android.media.MediaMetadata
+import android.media.session.MediaController
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.graphics.drawable.toBitmap
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
+import com.agupta07505.smartisland.model.IslandNotificationAction
 
 class SmartIslandNotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        runCatching { handleNotificationPosted(sbn) }
+    }
+
+    private fun handleNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName == packageName) return
 
         val notification = sbn.notification
         val extras = notification.extras
         val mode = notification.toIslandMode()
+        val mediaInfo = if (mode == IslandMode.Music) findMediaInfo(notification, sbn.packageName) else null
         val appName = runCatching {
             val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
             packageManager.getApplicationLabel(appInfo).toString()
@@ -29,10 +40,19 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
                     ?: extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString().orEmpty(),
                 timeMillis = sbn.postTime,
                 icon = loadAppIconBitmap(sbn.packageName),
+                largeIcon = mediaInfo?.artwork ?: notification.loadLargeIconBitmap(),
                 actions = notification.actions?.mapNotNull { it.title?.toString() }.orEmpty(),
+                actionIntents = notification.actions?.mapNotNull { action ->
+                    action.title?.toString()?.let { title ->
+                        IslandNotificationAction(title = title, pendingIntent = action.actionIntent)
+                    }
+                }.orEmpty(),
                 category = notification.category,
                 progress = extras.getInt(Notification.EXTRA_PROGRESS, 0),
-                progressMax = extras.getInt(Notification.EXTRA_PROGRESS_MAX, 0)
+                progressMax = extras.getInt(Notification.EXTRA_PROGRESS_MAX, 0),
+                mediaPositionMs = mediaInfo?.positionMs,
+                mediaDurationMs = mediaInfo?.durationMs,
+                mediaIsPlaying = mediaInfo?.isPlaying == true
             ),
             mode
         )
@@ -63,4 +83,75 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
             drawable.toBitmap(width = 96, height = 96)
         }.getOrNull()
     }
+
+    private fun Notification.loadLargeIconBitmap(): Bitmap? {
+        extras.get(Notification.EXTRA_LARGE_ICON).toBitmapOrNull()?.let { return it }
+        extras.get(Notification.EXTRA_LARGE_ICON_BIG).toBitmapOrNull()?.let { return it }
+        return runCatching {
+            getLargeIcon()?.loadDrawable(this@SmartIslandNotificationListenerService)
+                ?.toBitmap(width = 128, height = 128)
+        }.getOrNull()
+    }
+
+    private fun Any?.toBitmapOrNull(): Bitmap? {
+        return when (this) {
+            is Bitmap -> this
+            is Icon -> runCatching {
+                loadDrawable(this@SmartIslandNotificationListenerService)
+                    ?.toBitmap(width = 128, height = 128)
+            }.getOrNull()
+            else -> null
+        }
+    }
+
+    private fun findMediaInfo(notification: Notification, packageName: String): MediaInfo? {
+        notification.mediaSessionController()?.extractMediaInfo()?.let { return it }
+        val controller = activeMediaControllers.firstOrNull { it.packageName == packageName } ?: return null
+        return controller.extractMediaInfo()
+    }
+
+    private fun Notification.mediaSessionController(): MediaController? {
+        val token = runCatching {
+            extras.getParcelable<MediaSession.Token>(Notification.EXTRA_MEDIA_SESSION)
+        }.getOrNull() ?: return null
+        return runCatching { MediaController(this@SmartIslandNotificationListenerService, token) }.getOrNull()
+    }
+
+    private fun MediaController.extractMediaInfo(): MediaInfo {
+        val metadata = this.metadata
+        val playbackState = this.playbackState
+        val durationMs = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION)
+            ?.takeIf { it > 0 }
+        val positionMs = playbackState?.estimatedPosition()
+        val artwork = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+            ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+        return MediaInfo(
+            artwork = artwork,
+            positionMs = positionMs,
+            durationMs = durationMs,
+            isPlaying = playbackState?.state == PlaybackState.STATE_PLAYING
+        )
+    }
+
+    private val activeMediaControllers: List<MediaController>
+        get() = runCatching { mediaSessionManager.getActiveSessions(null) }.getOrDefault(emptyList())
+
+    private val mediaSessionManager by lazy {
+        getSystemService(MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
+    }
+
+    private fun PlaybackState.estimatedPosition(): Long? {
+        if (position < 0) return null
+        if (state != PlaybackState.STATE_PLAYING) return position
+        val elapsed = android.os.SystemClock.elapsedRealtime() - lastPositionUpdateTime
+        return (position + (elapsed * playbackSpeed).toLong()).coerceAtLeast(0L)
+    }
+
+    private data class MediaInfo(
+        val artwork: Bitmap?,
+        val positionMs: Long?,
+        val durationMs: Long?,
+        val isPlaying: Boolean
+    )
 }

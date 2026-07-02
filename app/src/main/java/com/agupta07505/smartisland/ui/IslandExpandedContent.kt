@@ -2,6 +2,7 @@ package com.agupta07505.smartisland.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material3.Icon
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
+import com.agupta07505.smartisland.model.IslandNotificationAction
 
 @Composable
 fun IslandExpandedContent(
@@ -156,17 +159,29 @@ private fun IncomingCallExpanded(notification: IslandNotification?) {
             fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(1f)
         )
-        CircleActionButton(color = Color(0xFFE11D48), icon = Icons.Rounded.Close)
-        CircleActionButton(color = Color(0xFF79C943), icon = Icons.Rounded.Call)
+        CircleActionButton(
+            color = Color(0xFFE11D48),
+            icon = Icons.Rounded.Close,
+            onClick = { notification.sendFirstAction("decline", "reject", "hang", "end") }
+        )
+        CircleActionButton(
+            color = Color(0xFF79C943),
+            icon = Icons.Rounded.Call,
+            onClick = { notification.sendFirstAction("answer", "accept") }
+        )
     }
 }
 
 @Composable
 private fun MusicExpanded(notification: IslandNotification?) {
-    val progress = if (notification?.progressMax?.let { it > 0 } == true) {
-        (notification.progress.toFloat() / notification.progressMax.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0.58f
+    val positionMs = notification?.mediaPositionMs
+    val durationMs = notification?.mediaDurationMs
+    val progress = when {
+        durationMs != null && durationMs > 0 && positionMs != null ->
+            (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+        notification?.progressMax?.let { it > 0 } == true ->
+            (notification.progress.toFloat() / notification.progressMax.toFloat()).coerceIn(0f, 1f)
+        else -> 0f
     }
     Column(
         modifier = Modifier
@@ -174,14 +189,25 @@ private fun MusicExpanded(notification: IslandNotification?) {
             .padding(start = 18.dp, top = 30.dp, end = 18.dp, bottom = 10.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFFF6B9A)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = Color.White)
+            val artwork = notification?.largeIcon ?: notification?.icon
+            if (artwork != null) {
+                Image(
+                    bitmap = artwork.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFFF6B9A)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = Color.White)
+                }
             }
             Column(Modifier.weight(1f)) {
                 Text(
@@ -203,18 +229,29 @@ private fun MusicExpanded(notification: IslandNotification?) {
         }
         Spacer(Modifier.height(7.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("02:05", color = Color.White, fontSize = 10.sp)
+            Text(formatDuration(positionMs), color = Color.White, fontSize = 10.sp)
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.weight(1f).height(3.dp), color = Color.White, trackColor = Color(0xFF667085))
-            Text("05:47", color = Color.White, fontSize = 10.sp)
+            Text(formatDuration(durationMs), color = Color.White, fontSize = 10.sp)
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {}) { Icon(Icons.Rounded.Replay, contentDescription = null, tint = Color.White) }
-            IconButton(onClick = {}) { Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(34.dp)) }
-            IconButton(onClick = {}) { Icon(Icons.Rounded.FastForward, contentDescription = null, tint = Color.White) }
+            IconButton(onClick = { notification.sendFirstAction("previous", "prev", "rewind") }) {
+                Icon(Icons.Rounded.Replay, contentDescription = null, tint = Color.White)
+            }
+            IconButton(onClick = { notification.sendFirstAction("play", "pause", "resume") }) {
+                Icon(
+                    if (notification?.mediaIsPlaying == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+            IconButton(onClick = { notification.sendFirstAction("next", "skip", "forward") }) {
+                Icon(Icons.Rounded.FastForward, contentDescription = null, tint = Color.White)
+            }
         }
     }
 }
@@ -222,15 +259,31 @@ private fun MusicExpanded(notification: IslandNotification?) {
 @Composable
 private fun CircleActionButton(
     color: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .size(52.dp)
             .clip(CircleShape)
-            .background(color),
+            .background(color)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
     }
+}
+
+private fun IslandNotification?.sendFirstAction(vararg keywords: String) {
+    val action = this?.actionIntents?.firstOrNull { action ->
+        keywords.any { keyword -> action.title.contains(keyword, ignoreCase = true) }
+    } ?: return
+    runCatching { action.pendingIntent?.send() }
+}
+
+private fun formatDuration(valueMs: Long?): String {
+    val totalSeconds = valueMs?.takeIf { it >= 0 }?.div(1000) ?: return "--:--"
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
 }

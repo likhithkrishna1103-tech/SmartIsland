@@ -7,6 +7,7 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -14,7 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.agupta07505.smartisland.data.SmartIslandSettings
 import com.agupta07505.smartisland.model.IslandMode
@@ -29,8 +30,8 @@ fun IslandOverlayView(
     onToggleExpanded: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val configuration = LocalConfiguration.current
-    val expandedWidth = (configuration.screenWidthDp * 0.90f).dp
+    val displayMetrics = LocalContext.current.resources.displayMetrics
+    val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * 0.98f).dp
     val transition = updateTransition(targetState = expanded, label = "islandTransition")
     val animationSpec = tween<androidx.compose.ui.unit.Dp>(
         durationMillis = 320,
@@ -51,8 +52,14 @@ fun IslandOverlayView(
             .size(width = width, height = height)
             .clip(RoundedCornerShape(radius))
             .background(Color.Black)
-            .clickable(onClick = onToggleExpanded)
     ) {
+        if (expanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(onClick = onToggleExpanded)
+            )
+        }
         if (expanded) {
             IslandExpandedContent(mode = mode, notification = notification)
         } else {

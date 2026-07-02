@@ -8,6 +8,8 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.provider.Settings
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
+import kotlin.math.abs
 
 class SmartIslandOverlayService : LifecycleService() {
     private lateinit var windowManager: WindowManager
@@ -79,6 +82,7 @@ class SmartIslandOverlayService : LifecycleService() {
 
         islandView = ComposeView(this).apply {
             installOverlayViewTreeOwners()
+            installReliableTapHandler()
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 OverlayIsland(
@@ -86,7 +90,7 @@ class SmartIslandOverlayService : LifecycleService() {
                     expandedFlow = expandedState,
                     modeFlow = modeState,
                     notificationFlow = notificationState,
-                    onToggleExpanded = { if (expandedState.value) collapse() else expand() }
+                    onToggleExpanded = { toggleExpanded() }
                 )
             }
         }
@@ -102,6 +106,10 @@ class SmartIslandOverlayService : LifecycleService() {
     private fun collapse() {
         if (!expandedState.value) return
         expandedState.value = false
+    }
+
+    private fun toggleExpanded() {
+        if (expandedState.value) collapse() else expand()
     }
 
     private fun updateCollapsedLayout(settings: SmartIslandSettings) {
@@ -181,6 +189,29 @@ class SmartIslandOverlayService : LifecycleService() {
         setViewTreeLifecycleOwner(overlayOwners)
         setViewTreeViewModelStoreOwner(overlayOwners)
         setViewTreeSavedStateRegistryOwner(overlayOwners)
+    }
+
+    private fun ComposeView.installReliableTapHandler() {
+        val touchSlop = ViewConfiguration.get(this@SmartIslandOverlayService).scaledTouchSlop
+        var downX = 0f
+        var downY = 0f
+        setOnTouchListener { _, event ->
+            if (expandedState.value) return@setOnTouchListener false
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    val moved = abs(event.rawX - downX) > touchSlop || abs(event.rawY - downY) > touchSlop
+                    if (!moved) toggleExpanded()
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> true
+                else -> true
+            }
+        }
     }
 
     companion object {
