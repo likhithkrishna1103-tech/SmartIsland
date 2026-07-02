@@ -13,15 +13,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,25 +43,90 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import android.app.ActivityOptions
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
 import com.agupta07505.smartisland.model.IslandNotificationAction
 
 @Composable
 fun IslandExpandedContent(
-    mode: IslandMode,
-    notification: IslandNotification?,
+    notifications: List<IslandNotification>,
+    selectedIndex: Int,
+    onPageSelected: (Int) -> Unit,
+    onOpenNotification: (IslandNotification) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        when (mode) {
-            IslandMode.Notification -> NotificationExpanded(notification)
-            IslandMode.IncomingCall -> IncomingCallExpanded(notification)
-            IslandMode.Music -> MusicExpanded(notification)
-            IslandMode.Empty -> EmptyExpanded()
+    if (notifications.isEmpty()) {
+        Box(modifier = modifier.fillMaxSize()) {
+            EmptyExpanded()
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 8.dp)
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black)
+            )
         }
+        return
+    }
+
+    val pagerState = rememberPagerState(
+        initialPage = selectedIndex.coerceIn(0, notifications.lastIndex),
+        pageCount = { notifications.size }
+    )
+
+    // Sync external selectedIndex updates
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex in notifications.indices && pagerState.currentPage != selectedIndex) {
+            pagerState.animateScrollToPage(selectedIndex)
+        }
+    }
+
+    // Sync pager page updates back to caller
+    LaunchedEffect(pagerState.currentPage) {
+        onPageSelected(pagerState.currentPage)
+    }
+
+    val bottomPadding = if (notifications.size > 1) 24.dp else 14.dp
+
+    Box(modifier = modifier.fillMaxSize()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val notification = notifications.getOrNull(page)
+            if (notification != null) {
+                when (notification.mode) {
+                    IslandMode.Notification -> NotificationExpanded(
+                        notification = notification,
+                        bottomPadding = bottomPadding,
+                        onOpenNotification = { onOpenNotification(notification) }
+                    )
+                    IslandMode.IncomingCall -> IncomingCallExpanded(
+                        notification = notification,
+                        bottomPadding = bottomPadding
+                    )
+                    IslandMode.Music -> MusicExpanded(
+                        notification = notification,
+                        bottomPadding = bottomPadding
+                    )
+                    IslandMode.Empty -> EmptyExpanded()
+                }
+            }
+        }
+
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -67,6 +135,30 @@ fun IslandExpandedContent(
                 .clip(CircleShape)
                 .background(Color.Black)
         )
+
+        // Three dots indicator at the bottom center when more than one notification exists
+        if (notifications.size > 1) {
+            Row(
+                Modifier
+                    .height(16.dp)
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(notifications.size) { iteration ->
+                    val color = if (pagerState.currentPage == iteration) Color.White else Color.Gray
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 3.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .size(6.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -84,74 +176,142 @@ private fun EmptyExpanded() {
 }
 
 @Composable
-private fun NotificationExpanded(notification: IslandNotification?) {
-    Row(
+private fun NotificationExpanded(
+    notification: IslandNotification?,
+    bottomPadding: Dp,
+    onOpenNotification: () -> Unit
+) {
+    val context = LocalContext.current
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 18.dp, top = 40.dp, end = 18.dp, bottom = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(start = 18.dp, top = 40.dp, end = 18.dp, bottom = bottomPadding),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        val icon = notification?.icon
-        if (icon != null) {
-            Image(
-                bitmap = icon.asImageBitmap(),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            )
-        } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val icon = notification?.icon
+            if (icon != null) {
+                Image(
+                    bitmap = icon.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF2563EB)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(notification?.appName?.firstOrNull()?.uppercase() ?: "S", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = notification?.title?.takeIf { it.isNotBlank() } ?: notification?.appName ?: "Notification",
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = notification?.text?.takeIf { it.isNotBlank() } ?: "New activity",
+                    color = Color(0xFFD5DAE0),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 13.sp
+                )
+            }
+
+            // Down Arrow Button (to open in-app notification) - Cute 24.dp custom button
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF2563EB)),
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF222222))
+                    .clickable { onOpenNotification() },
                 contentAlignment = Alignment.Center
             ) {
-                Text(notification?.appName?.firstOrNull()?.uppercase() ?: "S", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = notification?.title?.takeIf { it.isNotBlank() } ?: notification?.appName ?: "Notification",
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = notification?.text?.takeIf { it.isNotBlank() } ?: "New activity",
-                color = Color(0xFFD5DAE0),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                fontSize = 13.sp
-            )
-            if (!notification?.actions.isNullOrEmpty()) {
-                Text(
-                    text = notification.actions.take(2).joinToString("  |  "),
-                    color = Color(0xFF9CC7FF),
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                Icon(
+                    imageVector = Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = "Open App",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
-        Text(
-            text = notification?.let { formatNotificationTime(it.timeMillis) } ?: "",
-            color = Color(0xFFB7C0CA),
-            fontSize = 11.sp
-        )
+
+        // Bottom Section: Action buttons (left) and Time (right)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left part of Bottom Section: Action Buttons Row
+            if (notification != null && notification.actionIntents.isNotEmpty()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    notification.actionIntents.forEach { action ->
+                        Box(
+                            modifier = Modifier
+                                .height(28.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFE2E8F0)) // light grey background matching the Telegram button
+                                .clickable {
+                                    if (action.pendingIntent != null) {
+                                        triggerAction(context, notification.packageName, action.pendingIntent, action.title, notification.contentIntent)
+                                    } else {
+                                        Toast.makeText(context, "Clicked: ${action.title}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = action.title,
+                                color = Color(0xFF1F2937), // dark grey text
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            // Right part of Bottom Section: Time text
+            Text(
+                text = notification?.let { formatNotificationTime(it.timeMillis) } ?: "",
+                color = Color(0xFFB7C0CA),
+                fontSize = 11.sp,
+                modifier = Modifier.padding(start = 12.dp)
+            )
+        }
     }
 }
 
 @Composable
-private fun IncomingCallExpanded(notification: IslandNotification?) {
+private fun IncomingCallExpanded(
+    notification: IslandNotification?,
+    bottomPadding: Dp
+) {
+    val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 18.dp, top = 40.dp, end = 12.dp, bottom = 14.dp),
+            .padding(start = 18.dp, top = 40.dp, end = 12.dp, bottom = bottomPadding),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -167,18 +327,22 @@ private fun IncomingCallExpanded(notification: IslandNotification?) {
         CircleActionButton(
             color = Color(0xFFE11D48),
             icon = Icons.Rounded.Close,
-            onClick = { notification.sendFirstAction("decline", "reject", "hang", "end") }
+            onClick = { notification.sendFirstAction(context, "decline", "reject", "hang", "end") }
         )
         CircleActionButton(
             color = Color(0xFF79C943),
             icon = Icons.Rounded.Call,
-            onClick = { notification.sendFirstAction("answer", "accept") }
+            onClick = { notification.sendFirstAction(context, "answer", "accept") }
         )
     }
 }
 
 @Composable
-private fun MusicExpanded(notification: IslandNotification?) {
+private fun MusicExpanded(
+    notification: IslandNotification?,
+    bottomPadding: Dp
+) {
+    val context = LocalContext.current
     val positionMs = notification?.mediaPositionMs
     val durationMs = notification?.mediaDurationMs
     
@@ -208,7 +372,7 @@ private fun MusicExpanded(notification: IslandNotification?) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 18.dp, top = 40.dp, end = 18.dp, bottom = 10.dp)
+            .padding(start = 18.dp, top = 40.dp, end = 18.dp, bottom = bottomPadding)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             val artwork = notification?.largeIcon ?: notification?.icon
@@ -260,10 +424,10 @@ private fun MusicExpanded(notification: IslandNotification?) {
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { notification.sendFirstAction("previous", "prev", "rewind") }) {
+            IconButton(onClick = { notification.sendFirstAction(context, "previous", "prev", "rewind") }) {
                 Icon(Icons.Rounded.SkipPrevious, contentDescription = null, tint = Color.White)
             }
-            IconButton(onClick = { notification.sendFirstAction("play", "pause", "resume") }) {
+            IconButton(onClick = { notification.sendFirstAction(context, "play", "pause", "resume") }) {
                 Icon(
                     if (notification?.mediaIsPlaying == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = null,
@@ -271,7 +435,7 @@ private fun MusicExpanded(notification: IslandNotification?) {
                     modifier = Modifier.size(34.dp)
                 )
             }
-            IconButton(onClick = { notification.sendFirstAction("next", "skip", "forward") }) {
+            IconButton(onClick = { notification.sendFirstAction(context, "next", "skip", "forward") }) {
                 Icon(Icons.Rounded.SkipNext, contentDescription = null, tint = Color.White)
             }
         }
@@ -296,11 +460,13 @@ private fun CircleActionButton(
     }
 }
 
-private fun IslandNotification?.sendFirstAction(vararg keywords: String) {
+private fun IslandNotification?.sendFirstAction(context: Context, vararg keywords: String) {
     val action = this?.actionIntents?.firstOrNull { action ->
         keywords.any { keyword -> action.title.contains(keyword, ignoreCase = true) }
     } ?: return
-    runCatching { action.pendingIntent?.send() }
+    if (action.pendingIntent != null) {
+        triggerAction(context, this.packageName, action.pendingIntent, action.title, this.contentIntent)
+    }
 }
 
 private fun formatDuration(valueMs: Long?): String {
@@ -308,4 +474,31 @@ private fun formatDuration(valueMs: Long?): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "%d:%02d".format(minutes, seconds)
+}
+
+private fun triggerAction(context: Context, packageName: String, actionIntent: PendingIntent?, actionTitle: String, contentIntent: PendingIntent?) {
+    if (actionIntent == null) return
+
+    // If it is a Reply action, since typing inside the overlay window is blocked by focus rules,
+    // trigger the main notification's content intent to open the target chat directly!
+    if (actionTitle.contains("reply", ignoreCase = true) && contentIntent != null) {
+        sendIntentWithOptions(context, contentIntent)
+    } else {
+        sendIntentWithOptions(context, actionIntent)
+    }
+}
+
+private fun sendIntentWithOptions(context: Context, pendingIntent: PendingIntent) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        val options = ActivityOptions.makeBasic()
+            .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+            .toBundle()
+        runCatching {
+            pendingIntent.send(context, 0, null, null, null, null, options)
+        }
+    } else {
+        runCatching {
+            pendingIntent.send()
+        }
+    }
 }

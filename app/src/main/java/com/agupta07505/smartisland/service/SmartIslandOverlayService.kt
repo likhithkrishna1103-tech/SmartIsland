@@ -3,6 +3,7 @@ package com.agupta07505.smartisland.service
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.ActivityOptions
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
@@ -27,6 +28,7 @@ import com.agupta07505.smartisland.data.SmartIslandSettings
 import com.agupta07505.smartisland.data.SmartIslandSettingsRepository
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
+import com.agupta07505.smartisland.model.IslandNotificationAction
 import com.agupta07505.smartisland.ui.IslandOverlayView
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,7 +43,8 @@ class SmartIslandOverlayService : LifecycleService() {
     private val settingsState = MutableStateFlow(SmartIslandSettings.Default)
     private val expandedState = MutableStateFlow(false)
     private val modeState = MutableStateFlow(IslandMode.Empty)
-    private val notificationState = MutableStateFlow<IslandNotification?>(null)
+    private val notificationsState = MutableStateFlow<List<IslandNotification>>(emptyList())
+    private val selectedIndexState = MutableStateFlow(0)
 
     override fun onCreate() {
         super.onCreate()
@@ -50,7 +53,7 @@ class SmartIslandOverlayService : LifecycleService() {
         repository = SmartIslandSettingsRepository(applicationContext)
         overlayOwners.resume()
         startForeground(NOTIFICATION_ID, buildServiceNotification())
-        pendingNotification?.let { applyNotification(it, pendingMode) }
+        pendingNotifications.forEach { applyNotification(it) }
 
         lifecycleScope.launch {
             repository.settings.collect { settings ->
@@ -98,8 +101,14 @@ class SmartIslandOverlayService : LifecycleService() {
                 OverlayIsland(
                     settingsFlow = settingsState,
                     expandedFlow = expandedState,
-                    modeFlow = modeState,
-                    notificationFlow = notificationState,
+                    notificationsFlow = notificationsState,
+                    selectedIndexFlow = selectedIndexState,
+                    onPageSelected = { index ->
+                        setSelectedNotificationIndex(index)
+                    },
+                    onOpenNotification = { notification ->
+                        openNotification(notification)
+                    },
                     onToggleExpanded = { toggleExpanded() }
                 )
             }
@@ -204,21 +213,131 @@ class SmartIslandOverlayService : LifecycleService() {
             .build()
     }
 
-    private fun applyNotification(notification: IslandNotification, mode: IslandMode) {
-        notificationState.value = notification
-        modeState.value = mode
+    private fun applyNotification(notification: IslandNotification) {
+        val currentList = notificationsState.value.toMutableList()
+        val index = currentList.indexOfFirst { it.key == notification.key }
+        if (index >= 0) {
+            currentList[index] = notification
+        } else {
+            currentList.add(notification)
+        }
+        notificationsState.value = currentList
+        if (index < 0) {
+            selectedIndexState.value = currentList.size - 1
+        }
+        updateActiveMode()
+    }
+
+    fun removeNotification(key: String) {
+        val currentList = notificationsState.value.toMutableList()
+        val index = currentList.indexOfFirst { it.key == key }
+        if (index >= 0) {
+            currentList.removeAt(index)
+            notificationsState.value = currentList
+            val currentSelected = selectedIndexState.value
+            if (currentSelected >= currentList.size) {
+                selectedIndexState.value = (currentList.size - 1).coerceAtLeast(0)
+            }
+            updateActiveMode()
+        }
+    }
+
+    private fun updateActiveMode() {
+        val list = notificationsState.value
+        val index = selectedIndexState.value
+        if (list.isNotEmpty() && index in list.indices) {
+            modeState.value = list[index].mode
+        } else {
+            modeState.value = IslandMode.Empty
+        }
+    }
+
+    fun setSelectedNotificationIndex(index: Int) {
+        val list = notificationsState.value
+        if (index in list.indices) {
+            selectedIndexState.value = index
+            updateActiveMode()
+        }
+    }
+
+    private fun openNotification(notification: IslandNotification) {
+        if (notification.contentIntent != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                val options = ActivityOptions.makeBasic()
+                    .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                    .toBundle()
+                runCatching {
+                    notification.contentIntent.send(this, 0, null, null, null, null, options)
+                }
+            } else {
+                runCatching {
+                    notification.contentIntent.send()
+                }
+            }
+        } else {
+            runCatching {
+                val launchIntent = packageManager.getLaunchIntentForPackage(notification.packageName)
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(launchIntent)
+                } else {
+                    android.widget.Toast.makeText(this, "Opening ${notification.appName} (Demo)", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        collapse()
     }
 
     private fun showDemoMode(mode: IslandMode) {
-        modeState.value = mode
-        if (mode == IslandMode.Notification) {
-            notificationState.value = IslandNotification(
-                packageName = packageName,
-                appName = "Smart Island",
-                title = "ArchiveTune",
-                text = "A new notification is ready in the island.",
-                timeMillis = System.currentTimeMillis()
+        val demoNotification = when (mode) {
+            IslandMode.Notification -> IslandNotification(
+                key = "demo_notif",
+                packageName = "org.telegram.messenger",
+                appName = "Telegram",
+                title = "Alice Smith",
+                text = "Hey! Are we still meeting for lunch today?",
+                timeMillis = System.currentTimeMillis(),
+                mode = IslandMode.Notification,
+                actionIntents = listOf(
+                    IslandNotificationAction("Reply", null),
+                    IslandNotificationAction("Mark Read", null)
+                )
             )
+            IslandMode.IncomingCall -> IslandNotification(
+                key = "demo_call",
+                packageName = "com.google.android.dialer",
+                appName = "Phone",
+                title = "John Doe",
+                text = "Incoming Call",
+                timeMillis = System.currentTimeMillis(),
+                mode = IslandMode.IncomingCall,
+                actionIntents = listOf(
+                    IslandNotificationAction("Decline", null),
+                    IslandNotificationAction("Answer", null)
+                )
+            )
+            IslandMode.Music -> IslandNotification(
+                key = "demo_music",
+                packageName = "com.spotify.music",
+                appName = "Spotify",
+                title = "Starlight",
+                text = "Muse - Black Holes and Revelations",
+                timeMillis = System.currentTimeMillis(),
+                mode = IslandMode.Music,
+                mediaIsPlaying = true,
+                mediaDurationMs = 240000L,
+                mediaPositionMs = 45000L,
+                actionIntents = listOf(
+                    IslandNotificationAction("Previous", null),
+                    IslandNotificationAction("Play", null),
+                    IslandNotificationAction("Next", null)
+                )
+            )
+            IslandMode.Empty -> null
+        }
+
+        if (demoNotification != null) {
+            applyNotification(demoNotification)
         }
     }
 
@@ -230,18 +349,24 @@ class SmartIslandOverlayService : LifecycleService() {
         setViewTreeSavedStateRegistryOwner(overlayOwners)
     }
 
-
-
     companion object {
         private const val NOTIFICATION_ID = 8105
         private var instance: WeakReference<SmartIslandOverlayService>? = null
-        private var pendingNotification: IslandNotification? = null
-        private var pendingMode: IslandMode = IslandMode.Notification
+        private val pendingNotifications = mutableListOf<IslandNotification>()
 
-        fun updateNotification(notification: IslandNotification, mode: IslandMode = IslandMode.Notification) {
-            pendingNotification = notification
-            pendingMode = mode
-            instance?.get()?.applyNotification(notification, mode)
+        fun updateNotification(notification: IslandNotification) {
+            val existingIndex = pendingNotifications.indexOfFirst { it.key == notification.key }
+            if (existingIndex >= 0) {
+                pendingNotifications[existingIndex] = notification
+            } else {
+                pendingNotifications.add(notification)
+            }
+            instance?.get()?.applyNotification(notification)
+        }
+
+        fun removeNotification(key: String) {
+            pendingNotifications.removeAll { it.key == key }
+            instance?.get()?.removeNotification(key)
         }
 
         fun showDemo(mode: IslandMode) {
@@ -254,21 +379,25 @@ class SmartIslandOverlayService : LifecycleService() {
 private fun OverlayIsland(
     settingsFlow: StateFlow<SmartIslandSettings>,
     expandedFlow: StateFlow<Boolean>,
-    modeFlow: StateFlow<IslandMode>,
-    notificationFlow: StateFlow<IslandNotification?>,
+    notificationsFlow: StateFlow<List<IslandNotification>>,
+    selectedIndexFlow: StateFlow<Int>,
+    onPageSelected: (Int) -> Unit,
+    onOpenNotification: (IslandNotification) -> Unit,
     onToggleExpanded: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val settings by settingsFlow.collectAsState()
     val expanded by expandedFlow.collectAsState()
-    val mode by modeFlow.collectAsState()
-    val notification by notificationFlow.collectAsState()
+    val notifications by notificationsFlow.collectAsState()
+    val selectedIndex by selectedIndexFlow.collectAsState()
 
     IslandOverlayView(
         settings = settings,
         expanded = expanded,
-        mode = mode,
-        notification = notification,
+        notifications = notifications,
+        selectedIndex = selectedIndex,
+        onPageSelected = onPageSelected,
+        onOpenNotification = onOpenNotification,
         onToggleExpanded = onToggleExpanded,
         modifier = modifier
     )

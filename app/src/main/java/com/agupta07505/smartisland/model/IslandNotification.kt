@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.graphics.Bitmap
 
 data class IslandNotification(
+    val key: String = "",
     val packageName: String,
     val appName: String,
     val title: String,
@@ -18,7 +19,9 @@ data class IslandNotification(
     val progressMax: Int = 0,
     val mediaPositionMs: Long? = null,
     val mediaDurationMs: Long? = null,
-    val mediaIsPlaying: Boolean = false
+    val mediaIsPlaying: Boolean = false,
+    val mode: IslandMode = IslandMode.Notification,
+    val contentIntent: PendingIntent? = null
 )
 
 data class IslandNotificationAction(

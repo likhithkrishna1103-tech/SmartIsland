@@ -19,6 +19,13 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         runCatching { handleNotificationPosted(sbn) }
     }
 
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        runCatching {
+            if (sbn.packageName == packageName) return
+            SmartIslandOverlayService.removeNotification(sbn.key)
+        }
+    }
+
     private fun handleNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName == packageName) return
 
@@ -33,6 +40,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
 
         SmartIslandOverlayService.updateNotification(
             IslandNotification(
+                key = sbn.key,
                 packageName = sbn.packageName,
                 appName = appName,
                 title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty(),
@@ -52,9 +60,10 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
                 progressMax = extras.getInt(Notification.EXTRA_PROGRESS_MAX, 0),
                 mediaPositionMs = mediaInfo?.positionMs,
                 mediaDurationMs = mediaInfo?.durationMs,
-                mediaIsPlaying = mediaInfo?.isPlaying == true
-            ),
-            mode
+                mediaIsPlaying = mediaInfo?.isPlaying == true,
+                mode = mode,
+                contentIntent = notification.contentIntent
+            )
         )
     }
 

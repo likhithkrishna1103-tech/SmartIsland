@@ -32,8 +32,10 @@ import com.agupta07505.smartisland.model.IslandNotification
 fun IslandOverlayView(
     settings: SmartIslandSettings,
     expanded: Boolean,
-    mode: IslandMode,
-    notification: IslandNotification?,
+    notifications: List<IslandNotification>,
+    selectedIndex: Int,
+    onPageSelected: (Int) -> Unit,
+    onOpenNotification: (IslandNotification) -> Unit,
     onToggleExpanded: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -78,6 +80,9 @@ fun IslandOverlayView(
         if (it) 1f else 0f
     }
 
+    val activeNotification = notifications.getOrNull(selectedIndex)
+    val activeMode = activeNotification?.mode ?: IslandMode.Empty
+
     // Outer Box: Fills the entire WindowManager window bounds (which are padded for easy touch)
     Box(
         modifier = modifier
@@ -104,7 +109,7 @@ fun IslandOverlayView(
                         .fillMaxSize()
                         .graphicsLayer { alpha = collapsedAlpha }
                 ) {
-                    IslandCollapsedContent(mode = mode, notification = notification)
+                    IslandCollapsedContent(mode = activeMode, notification = activeNotification)
                 }
             }
 
@@ -117,7 +122,12 @@ fun IslandOverlayView(
                         .fillMaxSize()
                         .graphicsLayer { alpha = expandedAlpha }
                 ) {
-                    IslandExpandedContent(mode = mode, notification = notification)
+                    IslandExpandedContent(
+                        notifications = notifications,
+                        selectedIndex = selectedIndex,
+                        onPageSelected = onPageSelected,
+                        onOpenNotification = onOpenNotification
+                    )
                 }
             }
         }
