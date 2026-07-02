@@ -8,13 +8,10 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.provider.Settings
 import android.view.Gravity
-import android.view.MotionEvent
-import android.view.ViewConfiguration
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -35,7 +32,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
-import kotlin.math.abs
 
 class SmartIslandOverlayService : LifecycleService() {
     private lateinit var windowManager: WindowManager
@@ -120,9 +116,23 @@ class SmartIslandOverlayService : LifecycleService() {
     private fun updateWindowLayoutParams(expanded: Boolean, settings: SmartIslandSettings) {
         val view = islandView ?: return
         val displayMetrics = resources.displayMetrics
+        val density = displayMetrics.density
+        // Fix #2: Never use WRAP_CONTENT — it causes window bounds to fluctuate
+        // during Compose animations, making Android deliver touches to the wrong window.
+        // Always use explicit pixel dimensions so the touch target is rock-solid.
+        // We add padding when collapsed (+48dp width, +36dp height) to act as a highly forgiving touch target.
+        val w = if (expanded) {
+            (displayMetrics.widthPixels * 0.95f).toInt()
+        } else {
+            ((settings.width + 48f) * density).toInt()
+        }
+        val h = if (expanded) {
+            (160f * density).toInt()
+        } else {
+            ((settings.height + 36f) * density).toInt()
+        }
         val params = WindowManager.LayoutParams(
-            if (expanded) (displayMetrics.widthPixels * 0.95f).toInt() else WindowManager.LayoutParams.WRAP_CONTENT,
-            if (expanded) 160f.dpToPx() else WindowManager.LayoutParams.WRAP_CONTENT,
+            w, h,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
@@ -144,9 +154,10 @@ class SmartIslandOverlayService : LifecycleService() {
     }
 
     private fun collapsedParams(settings: SmartIslandSettings): WindowManager.LayoutParams {
+        val density = resources.displayMetrics.density
         return WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            ((settings.width + 48f) * density).toInt(),
+            ((settings.height + 36f) * density).toInt(),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
