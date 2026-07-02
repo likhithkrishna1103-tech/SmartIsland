@@ -1,8 +1,9 @@
 package com.agupta07505.smartisland.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateDp
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.agupta07505.smartisland.data.SmartIslandSettings
@@ -31,20 +33,52 @@ fun IslandOverlayView(
     modifier: Modifier = Modifier
 ) {
     val displayMetrics = LocalContext.current.resources.displayMetrics
-    val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * 0.98f).dp
+    val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * 0.95f).dp
     val transition = updateTransition(targetState = expanded, label = "islandTransition")
-    val animationSpec = tween<androidx.compose.ui.unit.Dp>(
-        durationMillis = 320,
-        easing = FastOutSlowInEasing
+    
+    val springSpec = spring<androidx.compose.ui.unit.Dp>(
+        dampingRatio = Spring.DampingRatioMediumBouncy,
+        stiffness = 350f
     )
-    val width by transition.animateDp(transitionSpec = { animationSpec }, label = "islandWidth") {
+    
+    val width by transition.animateDp(transitionSpec = { springSpec }, label = "islandWidth") {
         if (it) expandedWidth else settings.width.dp
     }
-    val height by transition.animateDp(transitionSpec = { animationSpec }, label = "islandHeight") {
-        if (it) 128.dp else settings.height.dp
+    val height by transition.animateDp(transitionSpec = { springSpec }, label = "islandHeight") {
+        if (it) 160.dp else settings.height.dp
     }
-    val radius by transition.animateDp(transitionSpec = { animationSpec }, label = "islandRadius") {
+    val radius by transition.animateDp(transitionSpec = { springSpec }, label = "islandRadius") {
         if (it) 34.dp else settings.cornerRadius.dp
+    }
+
+    val collapsedAlpha by transition.animateFloat(
+        transitionSpec = {
+            if (targetState) {
+                // Expanding: fade out collapsed content quickly
+                spring(stiffness = Spring.StiffnessMedium)
+            } else {
+                // Collapsing: fade in collapsed content slowly with delay
+                spring(stiffness = Spring.StiffnessLow)
+            }
+        },
+        label = "collapsedAlpha"
+    ) {
+        if (it) 0f else 1f
+    }
+
+    val expandedAlpha by transition.animateFloat(
+        transitionSpec = {
+            if (targetState) {
+                // Expanding: fade in expanded content slowly
+                spring(stiffness = Spring.StiffnessLow)
+            } else {
+                // Collapsing: fade out expanded content quickly
+                spring(stiffness = Spring.StiffnessMedium)
+            }
+        },
+        label = "expandedAlpha"
+    ) {
+        if (it) 1f else 0f
     }
 
     Box(
@@ -60,10 +94,25 @@ fun IslandOverlayView(
                     .clickable(onClick = onToggleExpanded)
             )
         }
-        if (expanded) {
-            IslandExpandedContent(mode = mode, notification = notification)
-        } else {
-            IslandCollapsedContent(mode = mode, notification = notification)
+        
+        if (collapsedAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = collapsedAlpha }
+            ) {
+                IslandCollapsedContent(mode = mode, notification = notification)
+            }
+        }
+        
+        if (expandedAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = expandedAlpha }
+            ) {
+                IslandExpandedContent(mode = mode, notification = notification)
+            }
         }
     }
 }

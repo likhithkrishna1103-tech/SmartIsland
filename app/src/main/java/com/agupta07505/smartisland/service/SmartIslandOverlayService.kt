@@ -63,8 +63,14 @@ class SmartIslandOverlayService : LifecycleService() {
                     stopSelf()
                 } else if (Settings.canDrawOverlays(this@SmartIslandOverlayService)) {
                     ensureCollapsedWindow()
-                    updateCollapsedLayout(settings)
+                    updateWindowLayoutParams(expandedState.value, settings)
                 }
+            }
+        }
+
+        lifecycleScope.launch {
+            expandedState.collect { expanded ->
+                updateWindowLayoutParams(expanded, settingsState.value)
             }
         }
     }
@@ -112,9 +118,23 @@ class SmartIslandOverlayService : LifecycleService() {
         if (expandedState.value) collapse() else expand()
     }
 
-    private fun updateCollapsedLayout(settings: SmartIslandSettings) {
+    private fun updateWindowLayoutParams(expanded: Boolean, settings: SmartIslandSettings) {
         val view = islandView ?: return
-        runCatching { windowManager.updateViewLayout(view, collapsedParams(settings)) }
+        val displayMetrics = resources.displayMetrics
+        val params = WindowManager.LayoutParams(
+            if (expanded) (displayMetrics.widthPixels * 0.95f).toInt() else WindowManager.LayoutParams.WRAP_CONTENT,
+            if (expanded) 160f.dpToPx() else WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            x = if (expanded) 0 else settings.xOffset.dpToPx()
+            y = settings.yOffset.dpToPx()
+        }
+        runCatching { windowManager.updateViewLayout(view, params) }
     }
 
     private fun removeCollapsedWindow() {

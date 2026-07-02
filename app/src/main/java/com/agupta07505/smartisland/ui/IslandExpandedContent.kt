@@ -70,7 +70,7 @@ private fun EmptyExpanded() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 18.dp, top = 36.dp, end = 18.dp, bottom = 16.dp),
+            .padding(start = 18.dp, top = 40.dp, end = 18.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.Center
     ) {
         Text("Smart Island", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
@@ -83,7 +83,7 @@ private fun NotificationExpanded(notification: IslandNotification?) {
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 18.dp, top = 34.dp, end = 18.dp, bottom = 16.dp),
+            .padding(start = 18.dp, top = 40.dp, end = 18.dp, bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -125,7 +125,7 @@ private fun NotificationExpanded(notification: IslandNotification?) {
             )
             if (!notification?.actions.isNullOrEmpty()) {
                 Text(
-                    text = notification!!.actions.take(2).joinToString("  |  "),
+                    text = notification.actions.take(2).joinToString("  |  "),
                     color = Color(0xFF9CC7FF),
                     fontSize = 12.sp,
                     maxLines = 1,
@@ -146,7 +146,7 @@ private fun IncomingCallExpanded(notification: IslandNotification?) {
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 18.dp, top = 28.dp, end = 12.dp, bottom = 14.dp),
+            .padding(start = 18.dp, top = 40.dp, end = 12.dp, bottom = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -186,7 +186,7 @@ private fun MusicExpanded(notification: IslandNotification?) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 18.dp, top = 30.dp, end = 18.dp, bottom = 10.dp)
+            .padding(start = 18.dp, top = 40.dp, end = 18.dp, bottom = 10.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             val artwork = notification?.largeIcon ?: notification?.icon
