@@ -88,7 +88,6 @@ class SmartIslandOverlayService : LifecycleService() {
 
         islandView = ComposeView(this).apply {
             installOverlayViewTreeOwners()
-            installReliableTapHandler()
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 OverlayIsland(
@@ -211,28 +210,7 @@ class SmartIslandOverlayService : LifecycleService() {
         setViewTreeSavedStateRegistryOwner(overlayOwners)
     }
 
-    private fun ComposeView.installReliableTapHandler() {
-        val touchSlop = ViewConfiguration.get(this@SmartIslandOverlayService).scaledTouchSlop
-        var downX = 0f
-        var downY = 0f
-        setOnTouchListener { _, event ->
-            if (expandedState.value) return@setOnTouchListener false
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    downX = event.rawX
-                    downY = event.rawY
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    val moved = abs(event.rawX - downX) > touchSlop || abs(event.rawY - downY) > touchSlop
-                    if (!moved) toggleExpanded()
-                    true
-                }
-                MotionEvent.ACTION_CANCEL -> true
-                else -> true
-            }
-        }
-    }
+
 
     companion object {
         private const val NOTIFICATION_ID = 8105
