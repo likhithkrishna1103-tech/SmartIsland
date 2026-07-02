@@ -1,6 +1,7 @@
 package com.agupta07505.smartisland.service
 
 import android.app.Notification
+import android.app.NotificationManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Icon
 import android.media.MediaMetadata
@@ -15,6 +16,8 @@ import com.agupta07505.smartisland.model.IslandNotification
 import com.agupta07505.smartisland.model.IslandNotificationAction
 
 class SmartIslandNotificationListenerService : NotificationListenerService() {
+    private val suppressedKeys = mutableSetOf<String>()
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         runCatching { handleNotificationPosted(sbn) }
     }
@@ -22,6 +25,10 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         runCatching {
             if (sbn.packageName == packageName) return
+            if (suppressedKeys.remove(sbn.key)) {
+                // Do not remove since we canceled it ourselves to suppress the system heads-up pop-up
+                return
+            }
             SmartIslandOverlayService.removeNotification(sbn.key)
         }
     }
@@ -37,6 +44,14 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
             val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
             packageManager.getApplicationLabel(appInfo).toString()
         }.getOrDefault(sbn.packageName)
+
+        // Check if heads-up notification (importance >= IMPORTANCE_HIGH)
+        var isHeadsUp = false
+        val ranking = Ranking()
+        val rankingMap = currentRanking
+        if (rankingMap != null && rankingMap.getRanking(sbn.key, ranking)) {
+            isHeadsUp = ranking.importance >= NotificationManager.IMPORTANCE_HIGH
+        }
 
         SmartIslandOverlayService.updateNotification(
             IslandNotification(
@@ -63,8 +78,14 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
                 mediaIsPlaying = mediaInfo?.isPlaying == true,
                 mode = mode,
                 contentIntent = notification.contentIntent
-            )
+            ),
+            autoExpand = isHeadsUp
         )
+
+        if (isHeadsUp) {
+            suppressedKeys.add(sbn.key)
+            cancelNotification(sbn.key)
+        }
     }
 
     private fun Notification.toIslandMode(): IslandMode {

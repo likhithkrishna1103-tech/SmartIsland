@@ -53,7 +53,7 @@ class SmartIslandOverlayService : LifecycleService() {
         repository = SmartIslandSettingsRepository(applicationContext)
         overlayOwners.resume()
         startForeground(NOTIFICATION_ID, buildServiceNotification())
-        pendingNotifications.forEach { applyNotification(it) }
+        pendingNotifications.forEach { applyNotification(it, autoExpand = false) }
 
         lifecycleScope.launch {
             repository.settings.collect { settings ->
@@ -222,7 +222,7 @@ class SmartIslandOverlayService : LifecycleService() {
             .build()
     }
 
-    private fun applyNotification(notification: IslandNotification) {
+    private fun applyNotification(notification: IslandNotification, autoExpand: Boolean) {
         val currentList = notificationsState.value.toMutableList()
         val index = currentList.indexOfFirst { it.key == notification.key }
         if (index >= 0) {
@@ -235,6 +235,9 @@ class SmartIslandOverlayService : LifecycleService() {
             selectedIndexState.value = currentList.size - 1
         }
         updateActiveMode()
+        if (autoExpand) {
+            expand()
+        }
     }
 
     fun removeNotification(key: String) {
@@ -346,7 +349,7 @@ class SmartIslandOverlayService : LifecycleService() {
         }
 
         if (demoNotification != null) {
-            applyNotification(demoNotification)
+            applyNotification(demoNotification, autoExpand = true)
         }
     }
 
@@ -363,14 +366,14 @@ class SmartIslandOverlayService : LifecycleService() {
         private var instance: WeakReference<SmartIslandOverlayService>? = null
         private val pendingNotifications = mutableListOf<IslandNotification>()
 
-        fun updateNotification(notification: IslandNotification) {
+        fun updateNotification(notification: IslandNotification, autoExpand: Boolean = false) {
             val existingIndex = pendingNotifications.indexOfFirst { it.key == notification.key }
             if (existingIndex >= 0) {
                 pendingNotifications[existingIndex] = notification
             } else {
                 pendingNotifications.add(notification)
             }
-            instance?.get()?.applyNotification(notification)
+            instance?.get()?.applyNotification(notification, autoExpand)
         }
 
         fun removeNotification(key: String) {
