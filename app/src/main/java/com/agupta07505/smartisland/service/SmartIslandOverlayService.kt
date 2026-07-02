@@ -66,7 +66,16 @@ class SmartIslandOverlayService : LifecycleService() {
 
         lifecycleScope.launch {
             expandedState.collect { expanded ->
-                updateWindowLayoutParams(expanded, settingsState.value)
+                if (expanded) {
+                    updateWindowLayoutParams(true, settingsState.value)
+                } else {
+                    // Delay window resizing to allow the collapse animation to play out smoothly
+                    // in the transparent expanded window before wrapping.
+                    kotlinx.coroutines.delay(500)
+                    if (!expandedState.value) {
+                        updateWindowLayoutParams(false, settingsState.value)
+                    }
+                }
             }
         }
     }
@@ -140,7 +149,7 @@ class SmartIslandOverlayService : LifecycleService() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            x = if (expanded) 0 else settings.xOffset.dpToPx()
+            x = settings.xOffset.dpToPx()
             y = settings.yOffset.dpToPx()
         }
         runCatching { windowManager.updateViewLayout(view, params) }

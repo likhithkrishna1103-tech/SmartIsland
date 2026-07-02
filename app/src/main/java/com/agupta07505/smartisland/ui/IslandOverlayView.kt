@@ -1,8 +1,10 @@
 package com.agupta07505.smartisland.ui
 
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
@@ -43,12 +45,12 @@ fun IslandOverlayView(
     val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * 0.95f).dp
     val transition = updateTransition(targetState = expanded, label = "islandTransition")
 
-    val sizeSpec = tween<androidx.compose.ui.unit.Dp>(
-        durationMillis = 400,
-        easing = FastOutSlowInEasing
+    val sizeSpec = spring<androidx.compose.ui.unit.Dp>(
+        dampingRatio = 0.7f,
+        stiffness = 300f
     )
     val alphaSpec = tween<Float>(
-        durationMillis = 350,
+        durationMillis = 280,
         easing = FastOutSlowInEasing
     )
 
