@@ -53,13 +53,7 @@ fun IslandOverlayView(
 
     val collapsedAlpha by transition.animateFloat(
         transitionSpec = {
-            if (targetState) {
-                // Expanding: fade out collapsed content quickly
-                spring(stiffness = Spring.StiffnessMedium)
-            } else {
-                // Collapsing: fade in collapsed content slowly with delay
-                spring(stiffness = Spring.StiffnessLow)
-            }
+            spring(stiffness = Spring.StiffnessMediumLow)
         },
         label = "collapsedAlpha"
     ) {
@@ -68,13 +62,7 @@ fun IslandOverlayView(
 
     val expandedAlpha by transition.animateFloat(
         transitionSpec = {
-            if (targetState) {
-                // Expanding: fade in expanded content slowly
-                spring(stiffness = Spring.StiffnessLow)
-            } else {
-                // Collapsing: fade out expanded content quickly
-                spring(stiffness = Spring.StiffnessMedium)
-            }
+            spring(stiffness = Spring.StiffnessMediumLow)
         },
         label = "expandedAlpha"
     ) {

@@ -18,16 +18,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Replay
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -176,9 +181,26 @@ private fun IncomingCallExpanded(notification: IslandNotification?) {
 private fun MusicExpanded(notification: IslandNotification?) {
     val positionMs = notification?.mediaPositionMs
     val durationMs = notification?.mediaDurationMs
+    
+    var livePositionMs by remember(positionMs, notification?.mediaIsPlaying) {
+        mutableStateOf(positionMs)
+    }
+
+    if (notification?.mediaIsPlaying == true && positionMs != null) {
+        LaunchedEffect(notification) {
+            val startTime = android.os.SystemClock.elapsedRealtime()
+            val startPosition = positionMs
+            while (true) {
+                val elapsed = android.os.SystemClock.elapsedRealtime() - startTime
+                livePositionMs = startPosition + elapsed
+                kotlinx.coroutines.delay(500)
+            }
+        }
+    }
+
     val progress = when {
-        durationMs != null && durationMs > 0 && positionMs != null ->
-            (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+        durationMs != null && durationMs > 0 && livePositionMs != null ->
+            (livePositionMs!!.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
         notification?.progressMax?.let { it > 0 } == true ->
             (notification.progress.toFloat() / notification.progressMax.toFloat()).coerceIn(0f, 1f)
         else -> 0f
@@ -229,7 +251,7 @@ private fun MusicExpanded(notification: IslandNotification?) {
         }
         Spacer(Modifier.height(7.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(formatDuration(positionMs), color = Color.White, fontSize = 10.sp)
+            Text(formatDuration(livePositionMs), color = Color.White, fontSize = 10.sp)
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.weight(1f).height(3.dp), color = Color.White, trackColor = Color(0xFF667085))
             Text(formatDuration(durationMs), color = Color.White, fontSize = 10.sp)
         }
@@ -239,7 +261,7 @@ private fun MusicExpanded(notification: IslandNotification?) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { notification.sendFirstAction("previous", "prev", "rewind") }) {
-                Icon(Icons.Rounded.Replay, contentDescription = null, tint = Color.White)
+                Icon(Icons.Rounded.SkipPrevious, contentDescription = null, tint = Color.White)
             }
             IconButton(onClick = { notification.sendFirstAction("play", "pause", "resume") }) {
                 Icon(
@@ -250,7 +272,7 @@ private fun MusicExpanded(notification: IslandNotification?) {
                 )
             }
             IconButton(onClick = { notification.sendFirstAction("next", "skip", "forward") }) {
-                Icon(Icons.Rounded.FastForward, contentDescription = null, tint = Color.White)
+                Icon(Icons.Rounded.SkipNext, contentDescription = null, tint = Color.White)
             }
         }
     }
