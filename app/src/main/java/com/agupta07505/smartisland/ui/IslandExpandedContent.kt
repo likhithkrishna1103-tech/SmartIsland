@@ -74,6 +74,7 @@ fun IslandExpandedContent(
     onOpenNotification: (IslandNotification) -> Unit,
     onCollapse: () -> Unit,
     statusBarHeight: Dp,
+    onHeightMeasured: (Dp) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (notifications.isEmpty()) {
@@ -83,8 +84,6 @@ fun IslandExpandedContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
-                    .clip(RoundedCornerShape(34.dp))
-                    .background(Color.Black)
             ) {
                 EmptyExpanded()
             }
@@ -136,14 +135,18 @@ fun IslandExpandedContent(
             null
         }
 
+        LaunchedEffect(targetHeight) {
+            if (targetHeight != null) {
+                onHeightMeasured(targetHeight)
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(
                     if (targetHeight != null) Modifier.height(targetHeight) else Modifier.wrapContentHeight()
                 )
-                .clip(RoundedCornerShape(34.dp))
-                .background(Color.Black)
         ) {
             HorizontalPager(
                 state = pagerState,

@@ -19,7 +19,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,8 +74,13 @@ fun IslandOverlayView(
         easing = FastOutSlowInEasing
     )
 
+    var expandedHeight by remember { mutableStateOf<Dp?>(null) }
+
     val width by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandWidth") {
         if (it) expandedWidth else settings.width.dp
+    }
+    val height by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandHeight") {
+        if (it) (expandedHeight ?: 160.dp) else settings.height.dp
     }
     val radius by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandRadius") {
         if (it) 34.dp else settings.cornerRadius.dp
@@ -120,23 +129,19 @@ fun IslandOverlayView(
             },
         contentAlignment = Alignment.TopCenter
     ) {
-        // Inner Box: The actual visible pill container (no background here so that top status bar region is transparent)
+        // Inner Box: The actual visible pill container, managing the black background shape and size animations
         Box(
             modifier = Modifier
                 .width(width)
-                .then(
-                    if (expanded) {
-                        Modifier.heightIn(max = 160.dp + statusBarHeight.dp)
-                    } else {
-                        Modifier.height(settings.height.dp)
-                    }
-                )
-                .animateContentSize(animationSpec = sizeSpecInt)
+                .height(height)
+                .clip(RoundedCornerShape(radius))
+                .background(Color.Black)
                 .pointerInput(Unit) {
                     detectTapGestures {
                         SmartIslandOverlayService.resetTimer()
                     }
-                }
+                },
+            contentAlignment = Alignment.TopCenter
         ) {
             // Collapsed content layer (purely visual, no gesture handlers)
             if (collapsedAlpha > 0f) {
@@ -148,8 +153,6 @@ fun IslandOverlayView(
                             scaleX = collapsedAlpha * 0.1f + 0.9f
                             scaleY = collapsedAlpha * 0.1f + 0.9f
                         }
-                        .clip(RoundedCornerShape(radius))
-                        .background(Color.Black)
                 ) {
                     IslandCollapsedContent(mode = activeMode, notification = activeNotification)
                 }
@@ -175,7 +178,8 @@ fun IslandOverlayView(
                         onPageSelected = onPageSelected,
                         onOpenNotification = onOpenNotification,
                         onCollapse = onToggleExpanded,
-                        statusBarHeight = statusBarHeight.dp
+                        statusBarHeight = statusBarHeight.dp,
+                        onHeightMeasured = { expandedHeight = it }
                     )
                 }
             }
