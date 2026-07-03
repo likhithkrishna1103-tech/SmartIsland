@@ -121,7 +121,8 @@ class SmartIslandOverlayService : LifecycleService() {
                         openNotification(notification)
                     },
                     onToggleExpanded = { toggleExpanded() },
-                    onDismissNotification = { dismissCurrentNotification() }
+                    onDismissNotification = { dismissCurrentNotification() },
+                    onOpenFloatingWindow = { openCurrentNotificationInFloatingWindow() }
                 )
             }
             try {
@@ -388,6 +389,53 @@ class SmartIslandOverlayService : LifecycleService() {
         collapse()
     }
 
+    private fun openCurrentNotificationInFloatingWindow() {
+        val list = notificationsState.value
+        val index = selectedIndexState.value
+        if (list.isNotEmpty() && index in list.indices) {
+            val notification = list[index]
+            val options = ActivityOptions.makeBasic()
+            runCatching {
+                val method = options.javaClass.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
+                method.invoke(options, 5) // WINDOWING_MODE_FREEFORM = 5
+            }
+            runCatching {
+                val displayMetrics = resources.displayMetrics
+                val screenWidth = displayMetrics.widthPixels
+                val screenHeight = displayMetrics.heightPixels
+                val w = (screenWidth * 0.90f).toInt()
+                val h = (screenHeight * 0.65f).toInt()
+                val left = (screenWidth - w) / 2
+                val top = (screenHeight - h) / 2
+                options.setLaunchBounds(android.graphics.Rect(left, top, left + w, top + h))
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                runCatching {
+                    options.setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                }
+            }
+            val bundle = options.toBundle()
+            if (notification.contentIntent != null) {
+                runCatching {
+                    notification.contentIntent.send(this, 0, null, null, null, null, bundle)
+                }
+            } else {
+                runCatching {
+                    val launchIntent = packageManager.getLaunchIntentForPackage(notification.packageName)
+                    if (launchIntent != null) {
+                        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(launchIntent, bundle)
+                    } else {
+                        android.widget.Toast.makeText(this, "Opening ${notification.appName} in floating window (Demo)", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            removeNotification(notification.key)
+            SmartIslandNotificationListenerService.cancelSystemNotification(notification.key)
+        }
+        collapse()
+    }
+
     private fun showDemoMode(mode: IslandMode) {
         val demoNotification = when (mode) {
             IslandMode.Notification -> IslandNotification(
@@ -490,6 +538,7 @@ private fun OverlayIsland(
     onOpenNotification: (IslandNotification) -> Unit,
     onToggleExpanded: () -> Unit,
     onDismissNotification: () -> Unit,
+    onOpenFloatingWindow: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val settings by settingsFlow.collectAsState()
@@ -506,6 +555,7 @@ private fun OverlayIsland(
         onOpenNotification = onOpenNotification,
         onToggleExpanded = onToggleExpanded,
         onDismissNotification = onDismissNotification,
+        onOpenFloatingWindow = onOpenFloatingWindow,
         statusBarHeight = statusBarHeight,
         modifier = modifier
     )

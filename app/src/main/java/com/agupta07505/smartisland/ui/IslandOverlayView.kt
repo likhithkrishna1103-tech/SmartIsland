@@ -50,6 +50,7 @@ fun IslandOverlayView(
     onOpenNotification: (IslandNotification) -> Unit,
     onToggleExpanded: () -> Unit,
     onDismissNotification: () -> Unit,
+    onOpenFloatingWindow: () -> Unit,
     statusBarHeight: Float,
     modifier: Modifier = Modifier
 ) {
@@ -57,6 +58,7 @@ fun IslandOverlayView(
     // even though pointerInput(Unit) never restarts its coroutine
     val currentOnToggle by rememberUpdatedState(onToggleExpanded)
     val currentOnDismiss by rememberUpdatedState(onDismissNotification)
+    val currentOnOpenFloatingWindow by rememberUpdatedState(onOpenFloatingWindow)
 
     val scope = rememberCoroutineScope()
     var dragOffset by remember { mutableStateOf(0f) }
@@ -164,15 +166,20 @@ fun IslandOverlayView(
                         },
                         onVerticalDrag = { change, dragAmount ->
                             dragAccumulator += dragAmount
-                            if (expanded && dragAccumulator < 0f) {
+                            if (expanded) {
                                 change.consume()
-                                dragOffset = dragAccumulator.coerceIn(-100f * displayMetrics.density, 0f)
+                                dragOffset = dragAccumulator.coerceIn(-100f * displayMetrics.density, 100f * displayMetrics.density)
                             }
                         },
                         onDragEnd = {
-                            val threshold = -35f * displayMetrics.density
-                            if (expanded && dragOffset < threshold) {
-                                currentOnDismiss()
+                            val swipeUpThreshold = -35f * displayMetrics.density
+                            val swipeDownThreshold = 35f * displayMetrics.density
+                            if (expanded) {
+                                if (dragOffset < swipeUpThreshold) {
+                                    currentOnDismiss()
+                                } else if (dragOffset > swipeDownThreshold) {
+                                    currentOnOpenFloatingWindow()
+                                }
                             }
                             scope.launch {
                                 androidx.compose.animation.core.Animatable(dragOffset).animateTo(
