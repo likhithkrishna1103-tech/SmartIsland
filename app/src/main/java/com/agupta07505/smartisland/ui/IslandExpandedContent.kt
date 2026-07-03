@@ -108,7 +108,7 @@ fun IslandExpandedContent(
         onPageSelected(pagerState.currentPage)
     }
 
-    val bottomPadding = if (notifications.size > 1) 36.dp else 16.dp
+    val bottomPadding = 16.dp
 
     Column(modifier = modifier.fillMaxWidth().wrapContentHeight()) {
 
@@ -186,29 +186,7 @@ fun IslandExpandedContent(
                 }
             }
 
-            // Three dots indicator at the bottom center when more than one notification exists
-            if (notifications.size > 1) {
-                Row(
-                    Modifier
-                        .height(16.dp)
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 6.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    repeat(notifications.size) { iteration ->
-                        val color = if (pagerState.currentPage == iteration) Color.White else Color.Gray
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 3.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .size(6.dp)
-                        )
-                    }
-                }
-            }
+
         }
     }
 }

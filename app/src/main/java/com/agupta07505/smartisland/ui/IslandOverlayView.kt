@@ -8,8 +8,14 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -142,6 +148,49 @@ fun IslandOverlayView(
             },
         contentAlignment = Alignment.TopCenter
     ) {
+        // Stack Indicator Brackets: concentric parentheses curves drawn behind the pill when notifications > 1
+        if (notifications.size > 1 && collapsedAlpha > 0f) {
+            Canvas(
+                modifier = Modifier
+                    .width(width)
+                    .height(height)
+                    .graphicsLayer {
+                        translationX = settings.xOffset.dp.toPx()
+                        translationY = yOffset.toPx() + dragOffset
+                        alpha = collapsedAlpha
+                    }
+            ) {
+                val h = size.height
+                val w = size.width
+                val r = radius.toPx().coerceAtMost(h / 2f)
+                val gap = 3.5.dp.toPx()
+                val strokeW = 1.5.dp.toPx()
+                val rArc = r + gap
+
+                // Left Arc: concentric bracket curve on the left
+                drawArc(
+                    color = Color.Black,
+                    startAngle = 145f,
+                    sweepAngle = 70f,
+                    useCenter = false,
+                    topLeft = Offset(-gap - strokeW / 2f, h / 2f - rArc - strokeW / 2f),
+                    size = Size(rArc * 2f + strokeW, rArc * 2f + strokeW),
+                    style = Stroke(width = strokeW, cap = StrokeCap.Round)
+                )
+
+                // Right Arc: concentric bracket curve on the right
+                drawArc(
+                    color = Color.Black,
+                    startAngle = 325f,
+                    sweepAngle = 70f,
+                    useCenter = false,
+                    topLeft = Offset(w - r * 2f - gap - strokeW / 2f, h / 2f - rArc - strokeW / 2f),
+                    size = Size(rArc * 2f + strokeW, rArc * 2f + strokeW),
+                    style = Stroke(width = strokeW, cap = StrokeCap.Round)
+                )
+            }
+        }
+
         // Inner Box: The actual visible pill container, managing the black background shape and size animations
         Box(
             modifier = Modifier
