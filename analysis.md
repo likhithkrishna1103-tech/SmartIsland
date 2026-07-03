@@ -132,3 +132,35 @@ graph TD
 | **Swiping Down** | Triggered in `IslandOverlayView` &rarr; Service sets window bounds &rarr; Intent launched with freeform window bundle &rarr; App opens in floating window. |
 | **Swiping Up** | Triggered in `IslandOverlayView` &rarr; Notification removed from state &rarr; System notification dismissed via listener service. |
 | **Tap collapsed Pill** | Expanding transition starts &rarr; Height recalculates to fit expanded content &rarr; Full details/controls exposed. |
+
+---
+
+## 6. Support & Feedback Section (Main Screen)
+
+Located in [SmartIslandHomeScreen.kt](file:///a:/SmartIsland/app/src/main/java/com/agupta07505/smartisland/ui/SmartIslandHomeScreen.kt) right above the About section, this card handles options for user contribution and app reviews:
+
+* **Star on GitHub**: Opens the main repository URL (`https://github.com/agupta07505/SmartIsland`) to allow starring. Uses `Icons.Rounded.Star`.
+* **Request a Feature**: Opens the GitHub issues page with preconfigured query parameters for a new enhancement request. Uses `Icons.Rounded.Feedback`.
+* **Report a Bug**: Opens the GitHub issues page preconfigured for a new bug report. Uses `Icons.Rounded.BugReport`.
+* **App Review**: Attempts to launch the Play Store review interface using `market://details?id=...` with a browser backup. Uses `Icons.Rounded.RateReview`.
+* **Licence**: Directs users to the open-source license file on GitHub. Uses `Icons.Rounded.Gavel`.
+
+---
+
+## 7. About & Contact Information (Main Screen Bottom)
+
+Located at the bottom of the scrollable layout in [SmartIslandHomeScreen.kt](file:///a:/SmartIsland/app/src/main/java/com/agupta07505/smartisland/ui/SmartIslandHomeScreen.kt), this card displays app metadata, links, and contact buttons:
+
+* **App Metadata & Options**:
+  * **Version**: Dynamically queries the app package manifest information using `PackageManager` (reflecting the `versionName` defined in [build.gradle.kts](file:///a:/SmartIsland/app/build.gradle.kts)) with `Icons.Rounded.Info`.
+  * **Privacy Policy**: Opens target URL (`PRIVACY.md` link) in a browser.
+  * **Terms of Use**: Opens target URL (`TERMS.md` link) in a browser.
+  * **Open Source**: Opens main GitHub codebase URL.
+* **Developer Contact Details**:
+  * **GitHub**: Launches `https://github.com/agupta07505` with a custom Canvas path.
+  * **LinkedIn**: Launches `https://linkedin.com/in/agupta07505` with a custom Canvas background and overlaid text.
+  * **Instagram**: Launches `https://instagram.com/agupta07505` with custom Canvas drawing.
+  * **Email**: Launches `mailto:agupta07505@gmail.com` with custom Canvas envelope drawing.
+* **Footer Signature**: Centered text at the very bottom displaying *"Made with ❤️ by Animesh Gupta"*.
+
+

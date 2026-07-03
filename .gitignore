@@ -7,3 +7,4 @@ local.properties
 .idea/
 .vscode
 debug-helper/
+.kotlin/
