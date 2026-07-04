@@ -32,7 +32,7 @@ At the time of this policy, Smart Island:
 - Does not send notification content to a remote server.
 - Does not sell or share user data.
 
-External links in the app may open GitHub, Google Play, email, or social/profile pages in another app or browser. Those external apps and services have their own privacy practices.
+External links in the app may open GitHub, email, or social/profile pages in another app or browser. Those external apps and services have their own privacy practices.
 
 ## Data Retention
 

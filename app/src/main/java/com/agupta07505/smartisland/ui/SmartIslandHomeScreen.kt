@@ -1,3 +1,10 @@
+/*
+ * Smart Island (2026)
+ * © Animesh Gupta — github.com/agupta07505
+ * Licensed under the GNU GPL v3License
+ * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
+ */
+
 package com.agupta07505.smartisland.ui
 
 import android.content.ComponentName
@@ -275,15 +282,11 @@ fun SmartIslandHomeScreen() {
                     label = "App Review",
                     icon = Icons.Rounded.RateReview,
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}")).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        runCatching { 
-                            context.startActivity(intent) 
-                        }.onFailure {
-                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${context.packageName}"))
-                            runCatching { context.startActivity(webIntent) }
-                        }
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/agupta07505/SmartIsland/issues/new?template=app_review.md")
+                        )
+                        runCatching { context.startActivity(intent) }
                     }
                 )
                 AboutItem(

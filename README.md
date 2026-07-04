@@ -143,6 +143,7 @@ SmartIsland/
 - Keep secrets, keystores, local SDK paths, generated APKs, and personal notification screenshots out of git.
 - Test overlay behavior on a physical device when possible; OEM Android builds can handle overlay and background-service rules differently.
 - Some floating-window behavior depends on Android version and device support.
+- For signed GitHub Actions releases, see [docs/RELEASE_SIGNING.md](docs/RELEASE_SIGNING.md).
 
 ## Contributing
 

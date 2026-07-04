@@ -1,23 +1,44 @@
 ---
-name: Feature request
-about: Suggest an improvement for Smart Island
-title: "[Feature]: "
+name: Feature Request
+about: Suggest a new feature or improvement for Smart Island
+title: "[Feature] "
 labels: enhancement
-assignees: ""
+assignees: ''
 ---
 
 ## Problem
 
-What problem would this solve?
+<!-- What user problem should this solve? -->
 
-## Proposal
+## Proposed Solution
 
-Describe the feature or improvement.
+<!-- Describe the behavior you want. -->
+
+## Affected Area
+
+- [ ] Floating overlay island
+- [ ] Notification listener
+- [ ] Incoming calls
+- [ ] Media playback
+- [ ] Island settings/customization
+- [ ] Permissions/onboarding
+- [ ] Privacy/security
+- [ ] Build/release
+- [ ] Documentation
+- [ ] Other:
+
+## UI Or UX Notes
+
+<!-- Include sketches, screenshots, examples, or interaction notes if this changes the interface. -->
+
+## Privacy, Permission, Or Data Impact
+
+<!-- Mention if this needs internet, new permissions, exported data, notification access, overlay access, or background services. -->
 
 ## Alternatives
 
-What alternatives have you considered?
+<!-- What other approaches or workarounds did you consider? -->
 
 ## Additional Context
 
-Add mockups, examples, or device notes if useful. Please remove private notification content from screenshots.
+<!-- Anything else that would help evaluate the request. Remove private notification content from screenshots. -->

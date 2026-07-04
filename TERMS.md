@@ -18,7 +18,7 @@ Smart Island uses Android permissions for overlay and notification-listener feat
 
 ## External Links
 
-The app may open external pages such as GitHub, Google Play, email, or profile links. Those services are not controlled by this project and may have their own terms and privacy policies.
+The app may open external pages such as GitHub, email, or profile links. Those services are not controlled by this project and may have their own terms and privacy policies.
 
 ## Privacy
 

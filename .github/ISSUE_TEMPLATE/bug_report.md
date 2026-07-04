@@ -1,14 +1,36 @@
 ---
-name: Bug report
-about: Report something that is broken or behaving unexpectedly
-title: "[Bug]: "
+name: Bug Report
+about: Report a bug to help improve Smart Island
+title: "[Bug] "
 labels: bug
-assignees: ""
+assignees: ''
 ---
 
-## Summary
+## Describe The Bug
 
-Describe the bug clearly.
+<!-- What happened? -->
+
+## Affected Area
+
+- [ ] Floating overlay island
+- [ ] Notification listener
+- [ ] Incoming calls
+- [ ] Media playback
+- [ ] Island settings/customization
+- [ ] Overlay permission
+- [ ] Notification listener permission
+- [ ] Build/release
+- [ ] Other:
+
+## Device Information
+
+| Field | Value |
+|-------|-------|
+| Device | e.g. Pixel 8 Pro |
+| Android version | e.g. Android 15 |
+| Smart Island version | e.g. 1.0 |
+| Install type | Release APK / debug APK / local build |
+| OEM skin | e.g. Pixel UI / One UI / MIUI / OxygenOS |
 
 ## Steps To Reproduce
 
@@ -18,23 +40,16 @@ Describe the bug clearly.
 
 ## Expected Behavior
 
-What did you expect to happen?
+<!-- What did you expect to happen? -->
 
 ## Actual Behavior
 
-What happened instead?
+<!-- What actually happened? -->
 
-## Device And App Details
+## Screenshots, Recordings, Or Logs
 
-- Device:
-- Android version:
-- Smart Island version or commit:
-- Installed from:
-
-## Logs Or Screenshots
-
-Add logs or screenshots only after removing private notification content, account names, tokens, and local file paths.
+<!-- Add screenshots, recordings, crash logs, or stack traces when useful. Remove private notification content. -->
 
 ## Extra Context
 
-Anything else that may help debug the issue.
+<!-- Is it intermittent? Did it start after an update? Does it involve overlay, notification listener, foreground service, calls, or media playback? -->
