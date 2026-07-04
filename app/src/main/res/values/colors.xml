@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Smart Island (2026)
+  © Animesh Gupta — github.com/agupta07505
+  Licensed under the GNU GPL v3License
+  Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
+-->
 <resources>
     <color name="ic_launcher_background">#05070A</color>
 </resources>

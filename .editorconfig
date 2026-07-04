@@ -1,0 +1,23 @@
+# Smart Island (2026)
+# © Animesh Gupta — github.com/agupta07505
+# Licensed under the GNU GPL v3License
+# Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{md,markdown}]
+trim_trailing_whitespace = false
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{bat,cmd}]
+end_of_line = crlf

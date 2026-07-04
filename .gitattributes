@@ -1,0 +1,32 @@
+# Smart Island (2026)
+# © Animesh Gupta — github.com/agupta07505
+# Licensed under the GNU GPL v3License
+# Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
+
+* text=auto
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sh text eol=lf
+*.gradle text eol=lf
+*.kts text eol=lf
+*.kt text eol=lf
+*.xml text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+.editorconfig text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+LICENSE text eol=lf
+
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.keystore binary
+*.jks binary
+*.apk binary
+*.aab binary

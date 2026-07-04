@@ -1,7 +1,23 @@
+/*
+ * Smart Island (2026)
+ * © Animesh Gupta — github.com/agupta07505
+ * Licensed under the GNU GPL v3License
+ * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
+ */
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+val signingStoreFile = providers.environmentVariable("SIGNING_STORE_FILE")
+val signingStorePassword = providers.environmentVariable("SIGNING_STORE_PASSWORD")
+val signingKeyAlias = providers.environmentVariable("SIGNING_KEY_ALIAS")
+val signingKeyPassword = providers.environmentVariable("SIGNING_KEY_PASSWORD")
+val hasReleaseSigning = signingStoreFile.isPresent &&
+    signingStorePassword.isPresent &&
+    signingKeyAlias.isPresent &&
+    signingKeyPassword.isPresent
 
 android {
     namespace = "com.agupta07505.smartisland"
@@ -17,6 +33,26 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = file(signingStoreFile.get())
+                storePassword = signingStorePassword.get()
+                keyAlias = signingKeyAlias.get()
+                keyPassword = signingKeyPassword.get()
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            isMinifyEnabled = false
+        }
     }
 
     compileOptions {

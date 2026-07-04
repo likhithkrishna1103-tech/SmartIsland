@@ -1,3 +1,8 @@
+# Smart Island (2026)
+# © Animesh Gupta — github.com/agupta07505
+# Licensed under the GNU GPL v3License
+# Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
+
 .gradle/
 .gradle-home/
 build/
@@ -8,3 +13,23 @@ local.properties
 .vscode
 debug-helper/
 .kotlin/
+
+# Android build outputs
+*.apk
+*.aab
+*.ap_
+captures/
+
+# Signing and local secrets
+*.jks
+*.keystore
+*_base64.txt
+keystore.properties
+secrets.properties
+.env
+.env.*
+
+# Generated reports and caches
+lint-results*.html
+lint-results*.xml
+test-results/

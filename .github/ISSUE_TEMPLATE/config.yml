@@ -1,0 +1,10 @@
+# Smart Island (2026)
+# © Animesh Gupta — github.com/agupta07505
+# Licensed under the GNU GPL v3License
+# Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
+
+blank_issues_enabled: true
+contact_links:
+  - name: Security reports
+    url: https://github.com/agupta07505/SmartIsland/blob/main/SECURITY.md
+    about: Please read the security policy before reporting security-sensitive issues.
