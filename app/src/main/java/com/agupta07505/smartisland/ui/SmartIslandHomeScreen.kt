@@ -82,7 +82,6 @@ import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.service.SmartIslandOverlayService
 import kotlinx.coroutines.launch
 
-
 @Composable
 fun SmartIslandHomeScreen() {
     val context = LocalContext.current
