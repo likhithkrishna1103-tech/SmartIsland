@@ -81,9 +81,6 @@ import com.agupta07505.smartisland.data.SmartIslandSettingsRepository
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.service.SmartIslandOverlayService
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import com.agupta07505.smartisland.R
 
 
 @Composable
@@ -124,24 +121,8 @@ fun SmartIslandHomeScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Spacer(Modifier.height(12.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.app_logo),
-                contentDescription = "Smart Island Logo",
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(Color.Black, shape = RoundedCornerShape(16.dp))
-                    .padding(8.dp)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Smart Island", style = MaterialTheme.typography.headlineLarge, color = Color(0xFF101828))
-                Text("A floating, animated island for notifications and quick glance states.", color = Color(0xFF667085))
-            }
-        }
+        Text("Smart Island", style = MaterialTheme.typography.headlineLarge, color = Color(0xFF101828))
+        Text("A floating, animated island for notifications and quick glance states.", color = Color(0xFF667085))
 
         Card(
             modifier = Modifier.fillMaxWidth(),

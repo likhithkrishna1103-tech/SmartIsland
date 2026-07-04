@@ -52,13 +52,6 @@ def generate():
         r_icon.paste(logo_resized_round, (offset_round, offset_round), logo_resized_round)
         r_icon.save(os.path.join(density_dir, "ic_launcher_round.png"), "PNG")
 
-    # Generate optimized logo for UI
-    drawable_dir = os.path.join(res_dir, "drawable")
-    os.makedirs(drawable_dir, exist_ok=True)
-    ui_logo = img.resize((512, 512), Image.Resampling.LANCZOS)
-    ui_logo.save(os.path.join(drawable_dir, "app_logo.png"), "PNG")
-    print("Optimized UI logo generated at drawable/app_logo.png")
-    
     print("All icons generated successfully!")
 
 if __name__ == "__main__":
