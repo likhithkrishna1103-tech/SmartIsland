@@ -8,3 +8,22 @@ local.properties
 .vscode
 debug-helper/
 .kotlin/
+
+# Android build outputs
+*.apk
+*.aab
+*.ap_
+captures/
+
+# Signing and local secrets
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+.env
+.env.*
+
+# Generated reports and caches
+lint-results*.html
+lint-results*.xml
+test-results/
