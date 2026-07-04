@@ -71,12 +71,12 @@ git push origin v1.0.0
 
 When a tag starting with `v` is pushed, the workflow builds signed artifacts and publishes them to a GitHub release. Pushes to `main` also publish/update a release using the app `versionName`; pushes to `dev` build a debug APK artifact only.
 
-## What Is `runner.temp`?
+## What Is `RUNNER_TEMP`?
 
-`runner.temp` is a GitHub Actions temporary folder that exists only during a workflow run. The workflow decodes your `ANDROID_KEYSTORE_BASE64` secret into:
+`RUNNER_TEMP` is a GitHub Actions temporary folder path that exists only during a workflow run. The workflow decodes your `ANDROID_KEYSTORE_BASE64` secret into:
 
 ```text
-${{ runner.temp }}/smartIsland.jks
+$RUNNER_TEMP/smartIsland.jks
 ```
 
 That file is created inside GitHub's temporary runner environment, used for signing, and then discarded after the job finishes. It does not need to exist in your repository.
