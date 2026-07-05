@@ -36,9 +36,12 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -192,8 +195,6 @@ fun IslandExpandedContent(
                     }
                 }
             }
-
-
         }
     }
 }
@@ -427,6 +428,104 @@ private fun MusicExpanded(
             (notification.progress.toFloat() / notification.progressMax.toFloat()).coerceIn(0f, 1f)
         else -> 0f
     }
+
+    val controller = remember(notification?.mediaToken) {
+        notification?.mediaToken?.let { token ->
+            runCatching { android.media.session.MediaController(context, token) }.getOrNull()
+        }
+    }
+
+    val getRepeatModeReflect = remember {
+        { ctrl: android.media.session.MediaController? ->
+            if (ctrl != null) {
+                runCatching {
+                    val method = ctrl.javaClass.getMethod("getRepeatMode")
+                    method.invoke(ctrl) as Int
+                }.getOrDefault(0)
+            } else {
+                0
+            }
+        }
+    }
+
+    val getIsHeartedReflect = remember {
+        { metadata: android.media.MediaMetadata? ->
+            if (metadata != null) {
+                runCatching {
+                    val rating = metadata.getRating(android.media.MediaMetadata.METADATA_KEY_USER_RATING)
+                    if (rating != null) {
+                        val method = rating.javaClass.getMethod("isHearted")
+                        method.invoke(rating) as Boolean
+                    } else {
+                        false
+                    }
+                }.getOrDefault(false)
+            } else {
+                false
+            }
+        }
+    }
+
+    var isLiked by remember(notification?.key) { mutableStateOf(false) }
+    var repeatMode by remember(notification?.key) { mutableStateOf(0) }
+
+    androidx.compose.runtime.DisposableEffect(controller) {
+        if (controller == null) return@DisposableEffect onDispose {}
+        val callback = object : android.media.session.MediaController.Callback() {
+            override fun onPlaybackStateChanged(state: android.media.session.PlaybackState?) {
+                repeatMode = getRepeatModeReflect(controller)
+            }
+            override fun onMetadataChanged(metadata: android.media.MediaMetadata?) {
+                isLiked = getIsHeartedReflect(metadata)
+            }
+        }
+        repeatMode = getRepeatModeReflect(controller)
+        isLiked = getIsHeartedReflect(controller.metadata)
+        controller.registerCallback(callback)
+        onDispose {
+            controller.unregisterCallback(callback)
+        }
+    }
+
+    val toggleLike = {
+        val newLike = !isLiked
+        isLiked = newLike
+        if (controller != null) {
+            try {
+                controller.transportControls.setRating(
+                    android.media.Rating.newHeartRating(newLike)
+                )
+                val customActions = controller.playbackState?.customActions.orEmpty()
+                val likeAction = customActions.firstOrNull { action ->
+                    val actionName = action.action.lowercase()
+                    val title = action.name.toString().lowercase()
+                    actionName.contains("like") || actionName.contains("favorite") ||
+                    title.contains("like") || title.contains("favorite")
+                }
+                if (likeAction != null) {
+                    controller.transportControls.sendCustomAction(likeAction.action, null)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    val toggleLoop = {
+        val nextMode = when (repeatMode) {
+            0 -> 1 // REPEAT_MODE_NONE -> REPEAT_MODE_ONE (Repeat One)
+            1 -> 2 // REPEAT_MODE_ONE -> REPEAT_MODE_ALL (Repeat All)
+            2 -> 0 // REPEAT_MODE_ALL -> REPEAT_MODE_NONE (None)
+            else -> 1
+        }
+        repeatMode = nextMode
+        if (controller != null) {
+            try {
+                val transportControls = controller.transportControls
+                val method = transportControls.javaClass.getMethod("setRepeatMode", Int::class.javaPrimitiveType)
+                method.invoke(transportControls, nextMode)
+            } catch (_: Exception) {}
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -497,11 +596,29 @@ private fun MusicExpanded(
             )
             Text(formatDuration(durationMs), color = Color.White, fontSize = 10.sp)
         }
+        Spacer(Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 1. Song Like Button (left of skip previous)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .bounceClick { toggleLike() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = "Like",
+                    tint = if (isLiked) Color(0xFFFF4B72) else Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            
+            // 2. Skip Previous Button
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -511,6 +628,8 @@ private fun MusicExpanded(
                 Icon(Icons.Rounded.SkipPrevious, contentDescription = null, tint = Color.White)
             }
             Spacer(Modifier.width(16.dp))
+            
+            // 3. Play/Pause Button
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -525,6 +644,8 @@ private fun MusicExpanded(
                 )
             }
             Spacer(Modifier.width(16.dp))
+            
+            // 4. Skip Next Button
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -532,6 +653,26 @@ private fun MusicExpanded(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Rounded.SkipNext, contentDescription = null, tint = Color.White)
+            }
+            Spacer(Modifier.width(12.dp))
+            
+            // 5. Song Loop Button (right of skip next)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .bounceClick { toggleLoop() },
+                contentAlignment = Alignment.Center
+            ) {
+                val tintColor = when (repeatMode) {
+                    1, 2 -> Color(0xFF1DB954) // spotify green loop active
+                    else -> Color.White
+                }
+                Icon(
+                    imageVector = if (repeatMode == 1) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                    contentDescription = "Loop",
+                    tint = tintColor,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }
