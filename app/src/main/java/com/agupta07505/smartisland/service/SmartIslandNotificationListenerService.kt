@@ -144,6 +144,9 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
                 mediaPositionMs = mediaInfo?.positionMs,
                 mediaDurationMs = mediaInfo?.durationMs,
                 mediaIsPlaying = mediaInfo?.isPlaying == true,
+                mediaToken = runCatching {
+                    notification.extras.getParcelable<android.media.session.MediaSession.Token>(Notification.EXTRA_MEDIA_SESSION)
+                }.getOrNull(),
                 mode = mode,
                 contentIntent = notification.contentIntent
             ),
@@ -291,7 +294,10 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
     }
 
     private val activeMediaControllers: List<MediaController>
-        get() = runCatching { mediaSessionManager.getActiveSessions(null) }.getOrDefault(emptyList())
+        get() = runCatching {
+            val componentName = android.content.ComponentName(this, SmartIslandNotificationListenerService::class.java)
+            mediaSessionManager.getActiveSessions(componentName)
+        }.getOrDefault(emptyList())
 
     private val mediaSessionManager by lazy {
         getSystemService(MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager

@@ -482,7 +482,15 @@ private fun MusicExpanded(
                     if (durationMs != null && durationMs > 0) {
                         val newPosition = (newProgress * durationMs).toLong()
                         livePositionMs = newPosition
-                        SmartIslandNotificationListenerService.seekTo(notification.packageName, newPosition)
+                        val token = notification.mediaToken
+                        if (token != null) {
+                            runCatching {
+                                val controller = android.media.session.MediaController(context, token)
+                                controller.transportControls.seekTo(newPosition)
+                            }
+                        } else {
+                            SmartIslandNotificationListenerService.seekTo(notification.packageName, newPosition)
+                        }
                     }
                 },
                 modifier = Modifier.weight(1f)
