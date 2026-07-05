@@ -10,6 +10,7 @@ package com.agupta07505.smartisland.service
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.drawable.Icon
 import android.media.MediaMetadata
@@ -55,6 +56,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         serviceScope.launch {
             runCatching {
                 if (!canProcessNotifications()) return@runCatching
+                if (shouldIgnoreForSmartIsland(sbn)) return@runCatching
                 val overlayStarted = ensureOverlayServiceRunning()
                 handleNotificationPosted(sbn, allowHeadsUpSuppression = overlayStarted)
             }
@@ -77,9 +79,11 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         serviceScope.launch {
             runCatching {
                 if (!canProcessNotifications()) return@runCatching
-                activeNotifications
+                val notifications = activeNotifications
                     .filter { it.packageName != packageName }
-                    .forEach { handleNotificationPosted(it, allowHeadsUpSuppression = false) }
+                    .filterNot { shouldIgnoreForSmartIsland(it) }
+                if (notifications.isEmpty()) return@runCatching
+                notifications.forEach { handleNotificationPosted(it, allowHeadsUpSuppression = false) }
                 ensureOverlayServiceRunning()
             }
         }
@@ -102,6 +106,8 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         if (sbn.packageName == packageName) return
 
         val notification = sbn.notification
+        if (shouldIgnoreForSmartIsland(sbn)) return
+
         val extras = notification.extras
         val mode = notification.toIslandMode()
         val isHeadsUp = shouldSuppressSystemHeadsUp(sbn, notification, mode, allowHeadsUpSuppression)
@@ -145,6 +151,12 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         )
     }
 
+    private fun shouldIgnoreForSmartIsland(sbn: StatusBarNotification): Boolean {
+        val notification = sbn.notification
+        if (!isHighPriorityNotification(sbn, notification)) return false
+        return notification.isSystemLevelCategory() || sbn.packageName.isSystemLevelPackage()
+    }
+
     private fun shouldSuppressSystemHeadsUp(
         sbn: StatusBarNotification,
         notification: Notification,
@@ -153,13 +165,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
     ): Boolean {
         if (!allowHeadsUpSuppression) return false
 
-        val ranking = Ranking()
-        val rankingMap = currentRanking
-        val isHighImportance = rankingMap != null &&
-            rankingMap.getRanking(sbn.key, ranking) &&
-            ranking.importance >= NotificationManager.IMPORTANCE_HIGH
-        val hasFullScreenIntent = notification.fullScreenIntent != null
-        var shouldSuppress = isHighImportance || hasFullScreenIntent
+        var shouldSuppress = isHighPriorityNotification(sbn, notification)
 
         // If it is an ongoing call, do not cancel it (do not treat as heads-up)
         // so that it stays in the system tray and we receive the removal event when it ends.
@@ -173,6 +179,31 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
             }
         }
         return shouldSuppress
+    }
+
+    private fun isHighPriorityNotification(sbn: StatusBarNotification, notification: Notification): Boolean {
+        val ranking = Ranking()
+        val rankingMap = currentRanking
+        val isHighImportance = rankingMap != null &&
+            rankingMap.getRanking(sbn.key, ranking) &&
+            ranking.importance >= NotificationManager.IMPORTANCE_HIGH
+        return isHighImportance || notification.fullScreenIntent != null
+    }
+
+    private fun Notification.isSystemLevelCategory(): Boolean {
+        return category == Notification.CATEGORY_SYSTEM ||
+            category == Notification.CATEGORY_STATUS ||
+            category == Notification.CATEGORY_SERVICE ||
+            category == Notification.CATEGORY_ERROR
+    }
+
+    private fun String.isSystemLevelPackage(): Boolean {
+        if (this in SYSTEM_LEVEL_PACKAGES) return true
+        val flags = runCatching {
+            packageManager.getApplicationInfo(this, 0).flags
+        }.getOrDefault(0)
+        return flags and ApplicationInfo.FLAG_SYSTEM != 0 &&
+            (startsWith("android") || startsWith("com.android."))
     }
 
     private fun suppressSystemNotification(key: String) {
@@ -281,6 +312,15 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
     )
 
     companion object {
+        private val SYSTEM_LEVEL_PACKAGES = setOf(
+            "android",
+            "com.android.systemui",
+            "com.android.settings",
+            "com.android.permissioncontroller",
+            "com.google.android.permissioncontroller",
+            "com.android.packageinstaller",
+            "com.google.android.packageinstaller"
+        )
         private var instance: WeakReference<SmartIslandNotificationListenerService>? = null
 
         fun cancelSystemNotification(key: String) {
