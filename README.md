@@ -37,9 +37,15 @@ The project is designed to be transparent, hackable, and privacy-conscious: noti
 ## Screenshots
 
 <p align="center">
-  <img src="/assets/screenshots/Home.jpeg" width="30%" alt="Screenshot 1" />
-  <img src="/assets/screenshots/Settings.jpeg" width="30%" alt="Screenshot 2" />
-  <img src="/assets/screenshots/SmartIsland.jpeg" width="30%" alt="Screenshot 3" />
+  <img src="/assets/screenshots/Home.jpeg" width="30%" alt="Home Screen" />
+  <img src="/assets/screenshots/Permissions.jpeg" width="30%" alt="Permissions Screen" />
+  <img src="/assets/screenshots/Positions.jpeg" width="30%" alt="Positions Screen" />
+</p>
+
+<p align="center">
+  <img src="/assets/screenshots/SmartIsland.jpeg" width="30%" alt="Smart Island Overlay" />
+  <img src="/assets/screenshots/Support.jpeg" width="30%" alt="Support Screen" />
+  <img src="/assets/screenshots/About.jpeg" width="30%" alt="About Screen" />
 </p>
 
 ## Features
