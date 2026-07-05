@@ -259,14 +259,17 @@ private fun NotificationExpanded(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     fontSize = 17.sp,
+                    lineHeight = 20.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = notification?.text?.takeIf { it.isNotBlank() } ?: "New activity",
                     color = Color(0xFFD5DAE0),
+                    minLines = 2,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    fontSize = 13.sp
+                    fontSize = 13.sp,
+                    lineHeight = 16.sp
                 )
             }
 
