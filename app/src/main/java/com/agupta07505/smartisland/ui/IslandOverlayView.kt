@@ -84,6 +84,10 @@ fun IslandOverlayView(
         dampingRatio = 0.6f,
         stiffness = 300f
     )
+    val widthSpec = spring<androidx.compose.ui.unit.Dp>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMediumLow
+    )
     val sizeSpecInt = spring<androidx.compose.ui.unit.IntSize>(
         dampingRatio = 0.6f,
         stiffness = 300f
@@ -99,7 +103,7 @@ fun IslandOverlayView(
 
     var expandedHeight by remember { mutableStateOf<Dp?>(null) }
 
-    val width by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandWidth") {
+    val width by transition.animateDp(transitionSpec = { widthSpec }, label = "islandWidth") {
         if (it) expandedWidth else settings.width.dp
     }
     val height by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandHeight") {
