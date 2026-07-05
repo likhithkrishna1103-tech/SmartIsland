@@ -475,7 +475,18 @@ private fun MusicExpanded(
         Spacer(Modifier.height(7.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(formatDuration(livePositionMs), color = Color.White, fontSize = 10.sp)
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.weight(1f).height(3.dp), color = Color.White, trackColor = Color(0xFF667085))
+            WavyMusicSeekBar(
+                progress = progress,
+                isPlaying = notification?.mediaIsPlaying == true,
+                onSeek = { newProgress ->
+                    if (durationMs != null && durationMs > 0) {
+                        val newPosition = (newProgress * durationMs).toLong()
+                        livePositionMs = newPosition
+                        SmartIslandNotificationListenerService.seekTo(notification.packageName, newPosition)
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
             Text(formatDuration(durationMs), color = Color.White, fontSize = 10.sp)
         }
         Row(

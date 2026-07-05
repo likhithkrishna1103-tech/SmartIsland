@@ -331,5 +331,15 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
                 }
             }
         }
+
+        fun seekTo(packageName: String, positionMs: Long) {
+            val service = instance?.get() ?: return
+            val controller = service.activeMediaControllers.firstOrNull { it.packageName == packageName }
+            if (controller != null) {
+                runCatching {
+                    controller.transportControls.seekTo(positionMs)
+                }
+            }
+        }
     }
 }
