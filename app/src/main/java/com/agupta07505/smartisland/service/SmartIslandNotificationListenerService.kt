@@ -32,9 +32,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
+import java.util.Collections
 
 class SmartIslandNotificationListenerService : NotificationListenerService() {
-    private val suppressedKeys = mutableSetOf<String>()
+    private val suppressedKeys = Collections.synchronizedSet(mutableSetOf<String>())
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val repository by lazy { SmartIslandSettingsRepository(applicationContext) }
 
@@ -103,31 +104,16 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         val notification = sbn.notification
         val extras = notification.extras
         val mode = notification.toIslandMode()
+        val isHeadsUp = shouldSuppressSystemHeadsUp(sbn, notification, mode, allowHeadsUpSuppression)
+        if (isHeadsUp) {
+            suppressSystemNotification(sbn.key)
+        }
+
         val mediaInfo = if (mode == IslandMode.Music) findMediaInfo(notification, sbn.packageName) else null
         val appName = runCatching {
             val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
             packageManager.getApplicationLabel(appInfo).toString()
         }.getOrDefault(sbn.packageName)
-
-        // Check if heads-up notification (importance >= IMPORTANCE_HIGH)
-        var isHeadsUp = false
-        val ranking = Ranking()
-        val rankingMap = currentRanking
-        if (rankingMap != null && rankingMap.getRanking(sbn.key, ranking)) {
-            isHeadsUp = allowHeadsUpSuppression && ranking.importance >= NotificationManager.IMPORTANCE_HIGH
-        }
-
-        // If it is an ongoing call, do not cancel it (do not treat as heads-up)
-        // so that it stays in the system tray and we receive the removal event when it ends.
-        if (mode == IslandMode.IncomingCall) {
-            val isIncoming = notification.actions?.any { action ->
-                val label = action.title?.toString()?.lowercase().orEmpty()
-                label.contains("answer") || label.contains("accept") || label.contains("take")
-            } == true
-            if (!isIncoming) {
-                isHeadsUp = false
-            }
-        }
 
         SmartIslandOverlayService.updateNotification(
             IslandNotification(
@@ -157,11 +143,44 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
             ),
             autoExpand = isHeadsUp
         )
+    }
 
-        if (isHeadsUp) {
-            suppressedKeys.add(sbn.key)
-            cancelNotification(sbn.key)
+    private fun shouldSuppressSystemHeadsUp(
+        sbn: StatusBarNotification,
+        notification: Notification,
+        mode: IslandMode,
+        allowHeadsUpSuppression: Boolean
+    ): Boolean {
+        if (!allowHeadsUpSuppression) return false
+
+        val ranking = Ranking()
+        val rankingMap = currentRanking
+        val isHighImportance = rankingMap != null &&
+            rankingMap.getRanking(sbn.key, ranking) &&
+            ranking.importance >= NotificationManager.IMPORTANCE_HIGH
+        val hasFullScreenIntent = notification.fullScreenIntent != null
+        var shouldSuppress = isHighImportance || hasFullScreenIntent
+
+        // If it is an ongoing call, do not cancel it (do not treat as heads-up)
+        // so that it stays in the system tray and we receive the removal event when it ends.
+        if (mode == IslandMode.IncomingCall) {
+            val isIncoming = notification.actions?.any { action ->
+                val label = action.title?.toString()?.lowercase().orEmpty()
+                label.contains("answer") || label.contains("accept") || label.contains("take")
+            } == true
+            if (!isIncoming) {
+                shouldSuppress = false
+            }
         }
+        return shouldSuppress
+    }
+
+    private fun suppressSystemNotification(key: String) {
+        suppressedKeys.add(key)
+        val canceled = runCatching {
+            cancelNotification(key)
+        }.isSuccess
+        if (!canceled) suppressedKeys.remove(key)
     }
 
     private fun Notification.toIslandMode(): IslandMode {
