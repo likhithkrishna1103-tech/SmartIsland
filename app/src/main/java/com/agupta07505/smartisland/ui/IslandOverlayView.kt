@@ -213,9 +213,13 @@ fun IslandOverlayView(
                 }
                 .clip(RoundedCornerShape(radius))
                 .background(Color.Black)
-                .pointerInput(Unit) {
+                .pointerInput(expanded) {
                     detectTapGestures {
-                        SmartIslandOverlayService.resetTimer()
+                        if (expanded) {
+                            SmartIslandOverlayService.resetTimer()
+                        } else {
+                            currentOnToggle()
+                        }
                     }
                 }
                 .pointerInput(displayMetrics.density) {
