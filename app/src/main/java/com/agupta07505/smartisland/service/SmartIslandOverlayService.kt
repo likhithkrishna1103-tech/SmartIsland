@@ -159,9 +159,9 @@ class SmartIslandOverlayService : LifecycleService() {
                                 if (touchableRegionField != null) {
                                     val touchableRegion = touchableRegionField.get(info) as? android.graphics.Region
                                     if (touchableRegion != null) {
-                                        val density = resources.displayMetrics.density
-                                        val w = ((settingsState.value.width + 48f) * density).toInt()
-                                        val h = ((settingsState.value.height + 36f) * density).toInt()
+                                         val density = resources.displayMetrics.density
+                                         val w = ((settingsState.value.width + 16f) * density).toInt()
+                                         val h = ((settingsState.value.height + 16f) * density).toInt()
                                         val xOffsetPx = (settingsState.value.xOffset * density).toInt()
                                         val yOffsetPx = (settingsState.value.yOffset * density).toInt()
 
@@ -236,8 +236,8 @@ class SmartIslandOverlayService : LifecycleService() {
         val h = if (expanded) {
             WindowManager.LayoutParams.MATCH_PARENT
         } else {
-            // Add statusBarHeight so the pill (translated down by yOffset) stays within the touch window
-            ((settings.height + 36f) * density).toInt() + statusBarHeight.dpToPx()
+            // Tight wrap: actual height + minimal shadow/bounce padding (e.g., 16dp total)
+            ((settings.height + 16f) * density).toInt()
         }
         val params = WindowManager.LayoutParams(
             w, h,
@@ -265,8 +265,8 @@ class SmartIslandOverlayService : LifecycleService() {
         val density = resources.displayMetrics.density
         return WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            // Add statusBarHeight so the pill (translated down by statusBarHeight) stays within the touch window
-            ((settings.height + 36f) * density).toInt() + statusBarHeight.dpToPx(),
+            // Tight wrap: actual height + minimal shadow/bounce padding (e.g., 16dp total)
+            ((settings.height + 16f) * density).toInt(),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or

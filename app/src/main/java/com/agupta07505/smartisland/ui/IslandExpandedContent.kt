@@ -36,9 +36,12 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -192,8 +195,6 @@ fun IslandExpandedContent(
                     }
                 }
             }
-
-
         }
     }
 }
@@ -259,18 +260,21 @@ private fun NotificationExpanded(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     fontSize = 17.sp,
+                    lineHeight = 20.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = notification?.text?.takeIf { it.isNotBlank() } ?: "New activity",
                     color = Color(0xFFD5DAE0),
+                    minLines = 2,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    fontSize = 13.sp
+                    fontSize = 13.sp,
+                    lineHeight = 16.sp
                 )
             }
 
-            // Time text on top right
+            // Time text on top right using the internal helper in IslandCollapsedContent
             Text(
                 text = notification?.let { formatNotificationTime(it.timeMillis) } ?: "",
                 color = Color(0xFFB7C0CA),
@@ -401,29 +405,218 @@ private fun MusicExpanded(
     val positionMs = notification?.mediaPositionMs
     val durationMs = notification?.mediaDurationMs
     
-    var livePositionMs by remember(positionMs, notification?.mediaIsPlaying) {
-        mutableStateOf(positionMs)
+    val controller = remember(notification?.mediaToken) {
+        notification?.mediaToken?.let { token ->
+            runCatching { android.media.session.MediaController(context, token) }.getOrNull()
+        }
     }
 
-    if (notification?.mediaIsPlaying == true && positionMs != null) {
-        LaunchedEffect(notification) {
-            val startTime = android.os.SystemClock.elapsedRealtime()
-            val startPosition = positionMs
+    val getEstimatedPosition = remember {
+        { ctrl: android.media.session.MediaController?, fallbackPos: Long? ->
+            val state = ctrl?.playbackState
+            if (state != null && state.state == android.media.session.PlaybackState.STATE_PLAYING) {
+                val elapsed = android.os.SystemClock.elapsedRealtime() - state.lastPositionUpdateTime
+                (state.position + (elapsed * state.playbackSpeed).toLong()).coerceAtLeast(0L)
+            } else {
+                state?.position ?: fallbackPos ?: 0L
+            }
+        }
+    }
+
+    var livePositionMs by remember(positionMs, controller) {
+        mutableStateOf(getEstimatedPosition(controller, positionMs))
+    }
+
+    if (notification?.mediaIsPlaying == true) {
+        LaunchedEffect(controller, positionMs) {
             while (true) {
-                val elapsed = android.os.SystemClock.elapsedRealtime() - startTime
-                livePositionMs = startPosition + elapsed
+                livePositionMs = getEstimatedPosition(controller, positionMs)
                 kotlinx.coroutines.delay(500)
             }
         }
     }
 
     val progress = when {
-        durationMs != null && durationMs > 0 && livePositionMs != null ->
-            (livePositionMs!!.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+        durationMs != null && durationMs > 0 ->
+            (livePositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
         notification?.progressMax?.let { it > 0 } == true ->
             (notification.progress.toFloat() / notification.progressMax.toFloat()).coerceIn(0f, 1f)
         else -> 0f
     }
+
+    val getRepeatModeReflect = remember {
+        { ctrl: android.media.session.MediaController? ->
+            if (ctrl != null) {
+                var mode = -1
+                
+                // 1. Try AndroidX repeat mode extras first (highly accurate for modern apps like Spotify/YT Music)
+                val extras = ctrl.extras
+                if (extras != null && extras.containsKey("androidx.media.MediaSessionCompat.Extras.KEY_REPEAT_MODE")) {
+                    mode = extras.getInt("androidx.media.MediaSessionCompat.Extras.KEY_REPEAT_MODE", -1)
+                }
+                
+                // 2. Try standard framework repeat mode if extras not found or invalid
+                if (mode == -1) {
+                    mode = runCatching {
+                        val method = ctrl.javaClass.getMethod("getRepeatMode")
+                        method.invoke(ctrl) as Int
+                    }.getOrDefault(-1)
+                }
+                
+                // 3. Try custom action states fallback
+                if (mode == -1 || mode == 0) {
+                    val customActions = ctrl.playbackState?.customActions.orEmpty()
+                    val activeRepeatAction = customActions.firstOrNull { action ->
+                        val actionName = action.action.lowercase()
+                        actionName.contains("repeat") || actionName.contains("loop")
+                    }
+                    if (activeRepeatAction != null) {
+                        val title = activeRepeatAction.name.toString().lowercase()
+                        if (title.contains("one") || title.contains("single") || title.contains("track")) {
+                            mode = 1 // loop one
+                        } else if (title.contains("all") || title.contains("playlist") || title.contains("on") || title.contains("enable")) {
+                            mode = 2 // loop all
+                        } else {
+                            mode = 0
+                        }
+                    }
+                }
+                if (mode == -1) 0 else mode
+            } else {
+                0
+            }
+        }
+    }
+
+    val getIsHeartedReflect = remember {
+        { metadata: android.media.MediaMetadata? ->
+            if (metadata != null) {
+                runCatching {
+                    val rating = metadata.getRating(android.media.MediaMetadata.METADATA_KEY_USER_RATING)
+                    if (rating != null) {
+                        val method = rating.javaClass.getMethod("isHearted")
+                        method.invoke(rating) as Boolean
+                    } else {
+                        false
+                    }
+                }.getOrDefault(false)
+            } else {
+                false
+            }
+        }
+    }
+
+    val resolveLikeState = remember(getIsHeartedReflect) {
+        { ctrl: android.media.session.MediaController? ->
+            if (ctrl != null) {
+                val ratingIsHearted = getIsHeartedReflect(ctrl.metadata)
+                if (ratingIsHearted) {
+                    true
+                } else {
+                    val customActions = ctrl.playbackState?.customActions.orEmpty()
+                    customActions.any { action ->
+                        val actionName = action.action.lowercase()
+                        val title = action.name.toString().lowercase()
+                        actionName.contains("unlike") || actionName.contains("remove") ||
+                        title.contains("unlike") || title.contains("remove")
+                    }
+                }
+            } else {
+                false
+            }
+        }
+    }
+
+    var isLiked by remember(notification?.key) { mutableStateOf(false) }
+    var repeatMode by remember(notification?.key) { mutableStateOf(0) }
+
+    androidx.compose.runtime.DisposableEffect(controller) {
+        if (controller == null) return@DisposableEffect onDispose {}
+        val callback = object : android.media.session.MediaController.Callback() {
+            override fun onPlaybackStateChanged(state: android.media.session.PlaybackState?) {
+                repeatMode = getRepeatModeReflect(controller)
+                isLiked = resolveLikeState(controller)
+            }
+            override fun onMetadataChanged(metadata: android.media.MediaMetadata?) {
+                isLiked = resolveLikeState(controller)
+            }
+            override fun onExtrasChanged(extras: android.os.Bundle?) {
+                repeatMode = getRepeatModeReflect(controller)
+            }
+            override fun onQueueChanged(queue: MutableList<android.media.session.MediaSession.QueueItem>?) {
+                repeatMode = getRepeatModeReflect(controller)
+            }
+            // Public method invoked by platform dynamically at runtime via reflection
+            fun onRepeatModeChanged(mode: Int) {
+                repeatMode = mode
+            }
+        }
+        repeatMode = getRepeatModeReflect(controller)
+        isLiked = resolveLikeState(controller)
+        controller.registerCallback(callback)
+        onDispose {
+            controller.unregisterCallback(callback)
+        }
+    }
+
+    val toggleLike = {
+        val newLike = !isLiked
+        isLiked = newLike
+        if (controller != null) {
+            try {
+                controller.transportControls.setRating(
+                    android.media.Rating.newHeartRating(newLike)
+                )
+                val customActions = controller.playbackState?.customActions.orEmpty()
+                val likeAction = customActions.firstOrNull { action ->
+                    val actionName = action.action.lowercase()
+                    val title = action.name.toString().lowercase()
+                    actionName.contains("like") || actionName.contains("favorite") ||
+                    title.contains("like") || title.contains("favorite")
+                }
+                if (likeAction != null) {
+                    controller.transportControls.sendCustomAction(likeAction.action, null)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    val toggleLoop = {
+        val nextMode = when (repeatMode) {
+            0 -> 1 // REPEAT_MODE_NONE -> REPEAT_MODE_ONE (Repeat One)
+            1 -> 2 // REPEAT_MODE_ONE -> REPEAT_MODE_ALL (Repeat All)
+            2 -> 0 // REPEAT_MODE_ALL -> REPEAT_MODE_NONE (None)
+            else -> 1
+        }
+        repeatMode = nextMode
+        if (controller != null) {
+            var standardInvoked = false
+            try {
+                // 1. Try framework standard repeat mode setter via reflection
+                val transportControls = controller.transportControls
+                val method = transportControls.javaClass.getMethod("setRepeatMode", Int::class.javaPrimitiveType)
+                method.invoke(transportControls, nextMode)
+                standardInvoked = true
+            } catch (e: Exception) {}
+            
+            if (!standardInvoked) {
+                try {
+                    // 2. Custom repeat toggle action fallback (only when standard method cannot be resolved)
+                    val customActions = controller.playbackState?.customActions.orEmpty()
+                    val repeatAction = customActions.firstOrNull { action ->
+                        val actionName = action.action.lowercase()
+                        val title = action.name.toString().lowercase()
+                        actionName.contains("repeat") || actionName.contains("loop") ||
+                        title.contains("repeat") || title.contains("loop")
+                    }
+                    if (repeatAction != null) {
+                        controller.transportControls.sendCustomAction(repeatAction.action, null)
+                    }
+                } catch (e: Exception) {}
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -441,15 +634,16 @@ private fun MusicExpanded(
                         .clip(RoundedCornerShape(8.dp))
                 )
             } else {
-                Box(
+                Icon(
+                    imageVector = Icons.Rounded.MusicNote,
+                    contentDescription = null,
+                    tint = Color.White,
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFFF6B9A)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = Color.White)
-                }
+                        .background(Color(0xFFFF6B9A))
+                        .padding(8.dp)
+                )
             }
             Column(Modifier.weight(1f)) {
                 Text(
@@ -472,14 +666,51 @@ private fun MusicExpanded(
         Spacer(Modifier.height(7.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(formatDuration(livePositionMs), color = Color.White, fontSize = 10.sp)
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.weight(1f).height(3.dp), color = Color.White, trackColor = Color(0xFF667085))
+            WavyMusicSeekBar(
+                progress = progress,
+                isPlaying = notification?.mediaIsPlaying == true,
+                onSeek = { newProgress ->
+                    if (durationMs != null && durationMs > 0) {
+                        val newPosition = (newProgress * durationMs).toLong()
+                        livePositionMs = newPosition
+                        val token = notification.mediaToken
+                        if (token != null) {
+                            runCatching {
+                                val controller = android.media.session.MediaController(context, token)
+                                controller.transportControls.seekTo(newPosition)
+                            }
+                        } else {
+                            SmartIslandNotificationListenerService.seekTo(notification.packageName, newPosition)
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
             Text(formatDuration(durationMs), color = Color.White, fontSize = 10.sp)
         }
+        Spacer(Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 1. Song Like Button (left of skip previous)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .bounceClick { toggleLike() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = "Like",
+                    tint = if (isLiked) Color(0xFFFF4B72) else Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            
+            // 2. Skip Previous Button
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -489,6 +720,8 @@ private fun MusicExpanded(
                 Icon(Icons.Rounded.SkipPrevious, contentDescription = null, tint = Color.White)
             }
             Spacer(Modifier.width(16.dp))
+            
+            // 3. Play/Pause Button
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -503,6 +736,8 @@ private fun MusicExpanded(
                 )
             }
             Spacer(Modifier.width(16.dp))
+            
+            // 4. Skip Next Button
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -510,6 +745,26 @@ private fun MusicExpanded(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Rounded.SkipNext, contentDescription = null, tint = Color.White)
+            }
+            Spacer(Modifier.width(12.dp))
+            
+            // 5. Song Loop Button (right of skip next)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .bounceClick { toggleLoop() },
+                contentAlignment = Alignment.Center
+            ) {
+                val tintColor = when (repeatMode) {
+                    1, 2 -> Color(0xFF1DB954) // spotify green loop active
+                    else -> Color.White
+                }
+                Icon(
+                    imageVector = if (repeatMode == 1) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                    contentDescription = "Loop",
+                    tint = tintColor,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }

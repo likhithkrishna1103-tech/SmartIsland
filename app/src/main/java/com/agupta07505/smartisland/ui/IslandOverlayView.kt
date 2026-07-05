@@ -72,6 +72,7 @@ fun IslandOverlayView(
     val currentOnToggle by rememberUpdatedState(onToggleExpanded)
     val currentOnDismiss by rememberUpdatedState(onDismissNotification)
     val currentOnOpenFloatingWindow by rememberUpdatedState(onOpenFloatingWindow)
+    val currentExpanded by rememberUpdatedState(expanded)
 
     val scope = rememberCoroutineScope()
     var dragOffset by remember { mutableStateOf(0f) }
@@ -84,6 +85,7 @@ fun IslandOverlayView(
         dampingRatio = 0.6f,
         stiffness = 300f
     )
+    
     val sizeSpecInt = spring<androidx.compose.ui.unit.IntSize>(
         dampingRatio = 0.6f,
         stiffness = 300f
@@ -211,7 +213,11 @@ fun IslandOverlayView(
                 .background(Color.Black)
                 .pointerInput(Unit) {
                     detectTapGestures {
-                        SmartIslandOverlayService.resetTimer()
+                        if (currentExpanded) {
+                            SmartIslandOverlayService.resetTimer()
+                        } else {
+                            currentOnToggle()
+                        }
                     }
                 }
                 .pointerInput(displayMetrics.density) {
@@ -222,7 +228,7 @@ fun IslandOverlayView(
                         },
                         onVerticalDrag = { change, dragAmount ->
                             dragAccumulator += dragAmount
-                            if (expanded) {
+                            if (currentExpanded) {
                                 change.consume()
                                 dragOffset = dragAccumulator.coerceIn(-100f * displayMetrics.density, 100f * displayMetrics.density)
                             }
@@ -230,7 +236,7 @@ fun IslandOverlayView(
                         onDragEnd = {
                             val swipeUpThreshold = -35f * displayMetrics.density
                             val swipeDownThreshold = 35f * displayMetrics.density
-                            if (expanded) {
+                            if (currentExpanded) {
                                 if (dragOffset < swipeUpThreshold) {
                                     currentOnDismiss()
                                 } else if (dragOffset > swipeDownThreshold) {

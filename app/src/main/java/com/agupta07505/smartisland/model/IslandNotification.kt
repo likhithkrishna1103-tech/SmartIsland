@@ -27,6 +27,7 @@ data class IslandNotification(
     val mediaPositionMs: Long? = null,
     val mediaDurationMs: Long? = null,
     val mediaIsPlaying: Boolean = false,
+    val mediaToken: android.media.session.MediaSession.Token? = null,
     val mode: IslandMode = IslandMode.Notification,
     val contentIntent: PendingIntent? = null
 )
