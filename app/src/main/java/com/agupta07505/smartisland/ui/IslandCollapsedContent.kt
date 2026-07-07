@@ -1,11 +1,13 @@
 /*
  * Smart Island (2026)
  * © Animesh Gupta — github.com/agupta07505
- * Licensed under the GNU GPL v3License
+ * Licensed under the GNU GPL v3 License
  * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
 
 package com.agupta07505.smartisland.ui
+
+import com.agupta07505.smartisland.util.formatNotificationTime
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -239,9 +241,6 @@ private fun AudioVisualizer(
     }
 }
 
-internal fun formatNotificationTime(timeMillis: Long): String {
-    return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timeMillis))
-}
 
 @Composable
 private fun CallTimer(postTimeMillis: Long, color: Color) {

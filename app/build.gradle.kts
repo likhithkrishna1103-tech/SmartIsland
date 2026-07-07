@@ -1,7 +1,7 @@
 /*
  * Smart Island (2026)
  * © Animesh Gupta — github.com/agupta07505
- * Licensed under the GNU GPL v3License
+ * Licensed under the GNU GPL v3 License
  * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
 
@@ -33,6 +33,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     signingConfigs {
@@ -51,8 +52,20 @@ android {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
+    }
+
+    lint {
+        abortOnError = true
+        warningsAsErrors = true
+        checkDependencies = true
+        disable += setOf("GradleDependency", "ObsoleteSdkInt")
     }
 
     compileOptions {
@@ -83,7 +96,13 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.lifecycle:lifecycle-service:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     debugImplementation(composeBom)
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("app.cash.turbine:turbine:1.1.0")
 }

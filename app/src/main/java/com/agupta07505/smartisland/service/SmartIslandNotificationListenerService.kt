@@ -1,7 +1,7 @@
 /*
  * Smart Island (2026)
  * © Animesh Gupta — github.com/agupta07505
- * Licensed under the GNU GPL v3License
+ * Licensed under the GNU GPL v3 License
  * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
 
@@ -22,7 +22,8 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
-import com.agupta07505.smartisland.data.SmartIslandSettingsRepository
+import com.agupta07505.smartisland.SmartIslandApp
+import com.agupta07505.smartisland.data.SmartIslandCommand
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
 import com.agupta07505.smartisland.model.IslandNotificationAction
@@ -32,21 +33,34 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.lang.ref.WeakReference
 import java.util.Collections
 
 class SmartIslandNotificationListenerService : NotificationListenerService() {
     private val suppressedKeys = Collections.synchronizedSet(mutableSetOf<String>())
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val repository by lazy { SmartIslandSettingsRepository(applicationContext) }
+    private val repository by lazy { (application as SmartIslandApp).settingsRepository }
+    private val notificationRepository by lazy { (application as SmartIslandApp).notificationRepository }
 
     override fun onCreate() {
         super.onCreate()
-        instance = WeakReference(this)
+        serviceScope.launch {
+            notificationRepository.commands.collect { command ->
+                when (command) {
+                    is SmartIslandCommand.CancelNotification -> {
+                        runCatching { cancelNotification(command.key) }
+                    }
+                    is SmartIslandCommand.SeekTo -> {
+                        val controller = activeMediaControllers.firstOrNull { it.packageName == command.packageName }
+                        if (controller != null) {
+                            runCatching { controller.transportControls.seekTo(command.positionMs) }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     override fun onDestroy() {
-        if (instance?.get() == this) instance = null
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -70,7 +84,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
                 // Do not remove since we canceled it ourselves to suppress the system heads-up pop-up
                 return
             }
-            SmartIslandOverlayService.removeNotification(sbn.key)
+            notificationRepository.removeNotification(sbn.key)
         }
     }
 
@@ -121,7 +135,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
             packageManager.getApplicationLabel(appInfo).toString()
         }.getOrDefault(sbn.packageName)
 
-        SmartIslandOverlayService.updateNotification(
+        notificationRepository.postNotification(
             IslandNotification(
                 key = sbn.key,
                 packageName = sbn.packageName,
@@ -154,7 +168,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         )
     }
 
-    private fun shouldIgnoreForSmartIsland(sbn: StatusBarNotification): Boolean {
+    internal fun shouldIgnoreForSmartIsland(sbn: StatusBarNotification): Boolean {
         val notification = sbn.notification
         if (!isHighPriorityNotification(sbn, notification)) return false
         return notification.isSystemLevelCategory() || sbn.packageName.isSystemLevelPackage()
@@ -184,7 +198,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         return shouldSuppress
     }
 
-    private fun isHighPriorityNotification(sbn: StatusBarNotification, notification: Notification): Boolean {
+    internal fun isHighPriorityNotification(sbn: StatusBarNotification, notification: Notification): Boolean {
         val ranking = Ranking()
         val rankingMap = currentRanking
         val isHighImportance = rankingMap != null &&
@@ -217,24 +231,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         if (!canceled) suppressedKeys.remove(key)
     }
 
-    private fun Notification.toIslandMode(): IslandMode {
-        return when (category) {
-            Notification.CATEGORY_CALL,
-            Notification.CATEGORY_MISSED_CALL -> IslandMode.IncomingCall
-            Notification.CATEGORY_TRANSPORT,
-            Notification.CATEGORY_PROGRESS -> IslandMode.Music
-            else -> {
-                val hasMediaAction = actions?.any { action ->
-                    val label = action.title?.toString()?.lowercase().orEmpty()
-                    label.contains("play") ||
-                        label.contains("pause") ||
-                        label.contains("next") ||
-                        label.contains("previous")
-                } == true
-                if (hasMediaAction) IslandMode.Music else IslandMode.Notification
-            }
-        }
-    }
+
 
     private fun loadAppIconBitmap(packageName: String): Bitmap? {
         return runCatching {
@@ -327,25 +324,26 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
             "com.android.packageinstaller",
             "com.google.android.packageinstaller"
         )
-        private var instance: WeakReference<SmartIslandNotificationListenerService>? = null
+    }
+}
 
-        fun cancelSystemNotification(key: String) {
-            val service = instance?.get()
-            if (service != null) {
-                runCatching {
-                    service.cancelNotification(key)
-                }
-            }
-        }
-
-        fun seekTo(packageName: String, positionMs: Long) {
-            val service = instance?.get() ?: return
-            val controller = service.activeMediaControllers.firstOrNull { it.packageName == packageName }
-            if (controller != null) {
-                runCatching {
-                    controller.transportControls.seekTo(positionMs)
-                }
-            }
+internal fun Notification.toIslandMode(): IslandMode {
+    return when (category) {
+        Notification.CATEGORY_CALL,
+        Notification.CATEGORY_MISSED_CALL -> IslandMode.IncomingCall
+        Notification.CATEGORY_TRANSPORT,
+        Notification.CATEGORY_PROGRESS -> IslandMode.Music
+        else -> {
+            val hasMediaAction = actions?.any { action ->
+                val label = action.title?.toString()?.lowercase().orEmpty()
+                label.contains("play") ||
+                    label.contains("pause") ||
+                    label.contains("next") ||
+                    label.contains("previous")
+            } == true
+            if (hasMediaAction) IslandMode.Music else IslandMode.Notification
         }
     }
 }
+
+

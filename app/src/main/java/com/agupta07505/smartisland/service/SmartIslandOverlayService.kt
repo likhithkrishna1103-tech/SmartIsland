@@ -1,29 +1,30 @@
 /*
  * Smart Island (2026)
  * © Animesh Gupta — github.com/agupta07505
- * Licensed under the GNU GPL v3License
+ * Licensed under the GNU GPL v3 License
  * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
 
 package com.agupta07505.smartisland.service
 
+import android.annotation.SuppressLint
+import android.app.ActivityOptions
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.ActivityOptions
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -31,20 +32,21 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.agupta07505.smartisland.MainActivity
 import com.agupta07505.smartisland.R
+import com.agupta07505.smartisland.SmartIslandApp
+import com.agupta07505.smartisland.data.SmartIslandCommand
 import com.agupta07505.smartisland.data.SmartIslandSettings
 import com.agupta07505.smartisland.data.SmartIslandSettingsRepository
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
-import com.agupta07505.smartisland.model.IslandNotificationAction
 import com.agupta07505.smartisland.ui.IslandOverlayView
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.lang.ref.WeakReference
 
 class SmartIslandOverlayService : LifecycleService() {
     private lateinit var windowManager: WindowManager
     private lateinit var repository: SmartIslandSettingsRepository
+    private lateinit var notificationRepository: com.agupta07505.smartisland.data.SmartIslandNotificationRepository
     private var islandView: ComposeView? = null
     private val overlayOwners = OverlayViewTreeOwners()
     private val settingsState = MutableStateFlow(SmartIslandSettings.Default)
@@ -52,15 +54,18 @@ class SmartIslandOverlayService : LifecycleService() {
     private val modeState = MutableStateFlow(IslandMode.Empty)
     private val notificationsState = MutableStateFlow<List<IslandNotification>>(emptyList())
     private val selectedIndexState = MutableStateFlow(0)
+    private var autoCollapseJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate() {
         super.onCreate()
-        instance = WeakReference(this)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        repository = SmartIslandSettingsRepository(applicationContext)
+        
+        val app = application as SmartIslandApp
+        repository = app.settingsRepository
+        notificationRepository = app.notificationRepository
+
         overlayOwners.resume()
         startForeground(NOTIFICATION_ID, buildServiceNotification())
-        pendingNotifications.forEach { applyNotification(it, autoExpand = false) }
 
         lifecycleScope.launch {
             repository.settings.collect { settings ->
@@ -81,8 +86,6 @@ class SmartIslandOverlayService : LifecycleService() {
                     startAutoCollapseTimer()
                 } else {
                     stopAutoCollapseTimer()
-                    // Delay window resizing to allow the collapse animation to play out smoothly
-                    // in the transparent expanded window before wrapping.
                     kotlinx.coroutines.delay(500)
                     if (!expandedState.value) {
                         updateWindowLayoutParams(false, settingsState.value)
@@ -90,12 +93,40 @@ class SmartIslandOverlayService : LifecycleService() {
                 }
             }
         }
+
+        lifecycleScope.launch {
+            notificationRepository.notifications.collect { list ->
+                notificationsState.value = list
+                val currentSelected = selectedIndexState.value
+                if (currentSelected >= list.size) {
+                    selectedIndexState.value = (list.size - 1).coerceAtLeast(0)
+                }
+                updateActiveMode()
+            }
+        }
+
+        lifecycleScope.launch {
+            notificationRepository.autoExpandEvent.collect { key ->
+                val list = notificationsState.value
+                val index = list.indexOfFirst { it.key == key }
+                if (index >= 0) {
+                    selectedIndexState.value = index
+                    updateActiveMode()
+                    expand()
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            notificationRepository.resetTimerEvent.collect {
+                resetAutoCollapseTimer()
+            }
+        }
     }
 
     override fun onDestroy() {
         removeCollapsedWindow()
         overlayOwners.destroy()
-        if (instance?.get() == this) instance = null
         super.onDestroy()
     }
 
@@ -107,6 +138,7 @@ class SmartIslandOverlayService : LifecycleService() {
             return if (heightDp > 0f) heightDp else 24f
         }
 
+    @SuppressLint("PrivateApi")
     private fun ensureCollapsedWindow() {
         if (islandView != null) return
         if (!Settings.canDrawOverlays(this)) return
@@ -121,12 +153,8 @@ class SmartIslandOverlayService : LifecycleService() {
                     notificationsFlow = notificationsState,
                     selectedIndexFlow = selectedIndexState,
                     statusBarHeight = statusBarHeight,
-                    onPageSelected = { index ->
-                        setSelectedNotificationIndex(index)
-                    },
-                    onOpenNotification = { notification ->
-                        openNotification(notification)
-                    },
+                    onPageSelected = { index -> setSelectedNotificationIndex(index) },
+                    onOpenNotification = { notification -> openNotification(notification) },
                     onToggleExpanded = { toggleExpanded() },
                     onDismissNotification = { dismissCurrentNotification() },
                     onOpenFloatingWindow = { openCurrentNotificationInFloatingWindow() }
@@ -139,17 +167,12 @@ class SmartIslandOverlayService : LifecycleService() {
                     classLoader,
                     arrayOf(listenerClass)
                 ) { _, method, args ->
-                    // CRITICAL: Wrap entire body in try-catch. Any exception escaping
-                    // a Proxy becomes UndeclaredThrowableException and crashes the app
-                    // during ViewRootImpl layout traversals.
                     try {
                         if (method.name == "onComputeInternalInsets" && args != null && args.isNotEmpty()) {
                             val info = args[0] ?: return@newProxyInstance null
                             val setTouchableInsetsMethod = info.javaClass.getMethod("setTouchableInsets", Int::class.javaPrimitiveType)
                             if (!expandedState.value) {
-                                setTouchableInsetsMethod.invoke(info, 3) // 3 is TOUCHABLE_INSETS_REGION
-
-                                // Try multiple field names for touchableRegion across OEM ROMs
+                                setTouchableInsetsMethod.invoke(info, 3) // TOUCHABLE_INSETS_REGION
                                 val touchableRegionField = sequenceOf("touchableRegion", "mTouchableRegion")
                                     .mapNotNull { name ->
                                         runCatching { info.javaClass.getDeclaredField(name).apply { isAccessible = true } }.getOrNull()
@@ -162,24 +185,22 @@ class SmartIslandOverlayService : LifecycleService() {
                                          val density = resources.displayMetrics.density
                                          val w = ((settingsState.value.width + 16f) * density).toInt()
                                          val h = ((settingsState.value.height + 16f) * density).toInt()
-                                        val xOffsetPx = (settingsState.value.xOffset * density).toInt()
-                                        val yOffsetPx = (settingsState.value.yOffset * density).toInt()
+                                         val xOffsetPx = (settingsState.value.xOffset * density).toInt()
 
-                                        val screenWidth = resources.displayMetrics.widthPixels
-                                        val left = (screenWidth - w) / 2 + xOffsetPx
-                                        val right = left + w
-                                        val top = 0
-                                        val bottom = h
+                                         val screenWidth = resources.displayMetrics.widthPixels
+                                         val left = (screenWidth - w) / 2 + xOffsetPx
+                                         val right = left + w
+                                         val top = 0
+                                         val bottom = h
 
-                                        touchableRegion.set(left, top, right, bottom)
+                                         touchableRegion.set(left, top, right, bottom)
                                     }
                                 }
                             } else {
-                                setTouchableInsetsMethod.invoke(info, 0) // 0 is TOUCHABLE_INSETS_FRAME
+                                setTouchableInsetsMethod.invoke(info, 0) // TOUCHABLE_INSETS_FRAME
                             }
                         }
                     } catch (_: Throwable) {
-                        // Silently ignore — touchable region is best-effort, not critical
                     }
                     null
                 }
@@ -188,7 +209,6 @@ class SmartIslandOverlayService : LifecycleService() {
                 e.printStackTrace()
             }
         }
-
         windowManager.addView(islandView, collapsedParams(settingsState.value))
     }
 
@@ -205,8 +225,6 @@ class SmartIslandOverlayService : LifecycleService() {
     private fun toggleExpanded() {
         if (expandedState.value) collapse() else expand()
     }
-
-    private var autoCollapseJob: kotlinx.coroutines.Job? = null
 
     private fun startAutoCollapseTimer() {
         autoCollapseJob?.cancel()
@@ -231,12 +249,10 @@ class SmartIslandOverlayService : LifecycleService() {
         val view = islandView ?: return
         val displayMetrics = resources.displayMetrics
         val density = displayMetrics.density
-        // Width is always MATCH_PARENT to prevent horizontal resize shifts/jumps
         val w = WindowManager.LayoutParams.MATCH_PARENT
         val h = if (expanded) {
             WindowManager.LayoutParams.MATCH_PARENT
         } else {
-            // Tight wrap: actual height + minimal shadow/bounce padding (e.g., 16dp total)
             ((settings.height + 16f) * density).toInt()
         }
         val params = WindowManager.LayoutParams(
@@ -265,7 +281,6 @@ class SmartIslandOverlayService : LifecycleService() {
         val density = resources.displayMetrics.density
         return WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            // Tight wrap: actual height + minimal shadow/bounce padding (e.g., 16dp total)
             ((settings.height + 16f) * density).toInt(),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -295,45 +310,13 @@ class SmartIslandOverlayService : LifecycleService() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        return NotificationCompat.Builder(this, channelId)
+        return androidx.core.app.NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("Smart Island is running")
             .setContentText("Floating island overlay is active.")
             .setOngoing(true)
             .setContentIntent(contentIntent)
             .build()
-    }
-
-    private fun applyNotification(notification: IslandNotification, autoExpand: Boolean) {
-        val currentList = notificationsState.value.toMutableList()
-        val index = currentList.indexOfFirst { it.key == notification.key }
-        if (index >= 0) {
-            currentList[index] = notification
-        } else {
-            currentList.add(notification)
-        }
-        notificationsState.value = currentList
-        if (index < 0) {
-            selectedIndexState.value = currentList.size - 1
-        }
-        updateActiveMode()
-        if (autoExpand) {
-            expand()
-        }
-    }
-
-    fun removeNotification(key: String) {
-        val currentList = notificationsState.value.toMutableList()
-        val index = currentList.indexOfFirst { it.key == key }
-        if (index >= 0) {
-            currentList.removeAt(index)
-            notificationsState.value = currentList
-            val currentSelected = selectedIndexState.value
-            if (currentSelected >= currentList.size) {
-                selectedIndexState.value = (currentList.size - 1).coerceAtLeast(0)
-            }
-            updateActiveMode()
-        }
     }
 
     private fun updateActiveMode() {
@@ -361,13 +344,9 @@ class SmartIslandOverlayService : LifecycleService() {
                 val options = ActivityOptions.makeBasic()
                     .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
                     .toBundle()
-                runCatching {
-                    notification.contentIntent.send(this, 0, null, null, null, null, options)
-                }
+                runCatching { notification.contentIntent.send(this, 0, null, null, null, null, options) }
             } else {
-                runCatching {
-                    notification.contentIntent.send()
-                }
+                runCatching { notification.contentIntent.send() }
             }
         } else {
             runCatching {
@@ -376,12 +355,12 @@ class SmartIslandOverlayService : LifecycleService() {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     startActivity(launchIntent)
                 } else {
-                    android.widget.Toast.makeText(this, "Opening ${notification.appName} (Demo)", android.widget.Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Opening ${notification.appName} (Demo)", Toast.LENGTH_SHORT).show()
                 }
             }
         }
-        removeNotification(notification.key)
-        SmartIslandNotificationListenerService.cancelSystemNotification(notification.key)
+        notificationRepository.removeNotification(notification.key)
+        notificationRepository.sendCommand(SmartIslandCommand.CancelNotification(notification.key))
         collapse()
     }
 
@@ -390,12 +369,13 @@ class SmartIslandOverlayService : LifecycleService() {
         val index = selectedIndexState.value
         if (list.isNotEmpty() && index in list.indices) {
             val notification = list[index]
-            removeNotification(notification.key)
-            SmartIslandNotificationListenerService.cancelSystemNotification(notification.key)
+            notificationRepository.removeNotification(notification.key)
+            notificationRepository.sendCommand(SmartIslandCommand.CancelNotification(notification.key))
         }
         collapse()
     }
 
+    @SuppressLint("PrivateApi")
     private fun openCurrentNotificationInFloatingWindow() {
         val list = notificationsState.value
         val index = selectedIndexState.value
@@ -405,6 +385,8 @@ class SmartIslandOverlayService : LifecycleService() {
             runCatching {
                 val method = options.javaClass.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
                 method.invoke(options, 5) // WINDOWING_MODE_FREEFORM = 5
+            }.onFailure {
+                Toast.makeText(this, "Freeform windowing mode is not supported on this device.", Toast.LENGTH_SHORT).show()
             }
             runCatching {
                 val displayMetrics = resources.displayMetrics
@@ -417,15 +399,11 @@ class SmartIslandOverlayService : LifecycleService() {
                 options.setLaunchBounds(android.graphics.Rect(left, top, left + w, top + h))
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                runCatching {
-                    options.setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
-                }
+                runCatching { options.setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED) }
             }
             val bundle = options.toBundle()
             if (notification.contentIntent != null) {
-                runCatching {
-                    notification.contentIntent.send(this, 0, null, null, null, null, bundle)
-                }
+                runCatching { notification.contentIntent.send(this, 0, null, null, null, null, bundle) }
             } else {
                 runCatching {
                     val launchIntent = packageManager.getLaunchIntentForPackage(notification.packageName)
@@ -433,67 +411,14 @@ class SmartIslandOverlayService : LifecycleService() {
                         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(launchIntent, bundle)
                     } else {
-                        android.widget.Toast.makeText(this, "Opening ${notification.appName} in floating window (Demo)", android.widget.Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Opening ${notification.appName} in floating window (Demo)", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
-            removeNotification(notification.key)
-            SmartIslandNotificationListenerService.cancelSystemNotification(notification.key)
+            notificationRepository.removeNotification(notification.key)
+            notificationRepository.sendCommand(SmartIslandCommand.CancelNotification(notification.key))
         }
         collapse()
-    }
-
-    private fun showDemoMode(mode: IslandMode) {
-        val demoNotification = when (mode) {
-            IslandMode.Notification -> IslandNotification(
-                key = "demo_notif",
-                packageName = "org.telegram.messenger",
-                appName = "Telegram",
-                title = "Alice Smith",
-                text = "Hey! Are we still meeting for lunch today?",
-                timeMillis = System.currentTimeMillis(),
-                mode = IslandMode.Notification,
-                actionIntents = listOf(
-                    IslandNotificationAction("Reply", null),
-                    IslandNotificationAction("Mark Read", null)
-                )
-            )
-            IslandMode.IncomingCall -> IslandNotification(
-                key = "demo_call",
-                packageName = "com.google.android.dialer",
-                appName = "Phone",
-                title = "John Doe",
-                text = "Incoming Call",
-                timeMillis = System.currentTimeMillis(),
-                mode = IslandMode.IncomingCall,
-                actionIntents = listOf(
-                    IslandNotificationAction("Decline", null),
-                    IslandNotificationAction("Answer", null)
-                )
-            )
-            IslandMode.Music -> IslandNotification(
-                key = "demo_music",
-                packageName = "com.spotify.music",
-                appName = "Spotify",
-                title = "Starlight",
-                text = "Muse - Black Holes and Revelations",
-                timeMillis = System.currentTimeMillis(),
-                mode = IslandMode.Music,
-                mediaIsPlaying = true,
-                mediaDurationMs = 240000L,
-                mediaPositionMs = 45000L,
-                actionIntents = listOf(
-                    IslandNotificationAction("Previous", null),
-                    IslandNotificationAction("Play", null),
-                    IslandNotificationAction("Next", null)
-                )
-            )
-            IslandMode.Empty -> null
-        }
-
-        if (demoNotification != null) {
-            applyNotification(demoNotification, autoExpand = true)
-        }
     }
 
     private fun Float.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
@@ -506,31 +431,6 @@ class SmartIslandOverlayService : LifecycleService() {
 
     companion object {
         private const val NOTIFICATION_ID = 8105
-        private var instance: WeakReference<SmartIslandOverlayService>? = null
-        private val pendingNotifications = mutableListOf<IslandNotification>()
-
-        fun updateNotification(notification: IslandNotification, autoExpand: Boolean = false) {
-            val existingIndex = pendingNotifications.indexOfFirst { it.key == notification.key }
-            if (existingIndex >= 0) {
-                pendingNotifications[existingIndex] = notification
-            } else {
-                pendingNotifications.add(notification)
-            }
-            instance?.get()?.applyNotification(notification, autoExpand)
-        }
-
-        fun removeNotification(key: String) {
-            pendingNotifications.removeAll { it.key == key }
-            instance?.get()?.removeNotification(key)
-        }
-
-        fun showDemo(mode: IslandMode) {
-            instance?.get()?.showDemoMode(mode)
-        }
-
-        fun resetTimer() {
-            instance?.get()?.resetAutoCollapseTimer()
-        }
     }
 }
 

@@ -1,7 +1,7 @@
 /*
  * Smart Island (2026)
  * © Animesh Gupta — github.com/agupta07505
- * Licensed under the GNU GPL v3License
+ * Licensed under the GNU GPL v3 License
  * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
 
@@ -48,10 +48,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.agupta07505.smartisland.SmartIslandApp
 import com.agupta07505.smartisland.data.SmartIslandSettings
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
-import com.agupta07505.smartisland.service.SmartIslandOverlayService
 
 @Composable
 fun IslandOverlayView(
@@ -77,7 +77,8 @@ fun IslandOverlayView(
     val scope = rememberCoroutineScope()
     var dragOffset by remember { mutableStateOf(0f) }
 
-    val displayMetrics = LocalContext.current.resources.displayMetrics
+    val context = LocalContext.current
+    val displayMetrics = context.resources.displayMetrics
     val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * 0.95f).dp
     val transition = updateTransition(targetState = expanded, label = "islandTransition")
 
@@ -214,7 +215,7 @@ fun IslandOverlayView(
                 .pointerInput(Unit) {
                     detectTapGestures {
                         if (currentExpanded) {
-                            SmartIslandOverlayService.resetTimer()
+                            (context.applicationContext as? SmartIslandApp)?.notificationRepository?.resetTimer()
                         } else {
                             currentOnToggle()
                         }
