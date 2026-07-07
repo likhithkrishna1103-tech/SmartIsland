@@ -4,6 +4,21 @@ All notable changes to Smart Island should be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project uses the GNU General Public License v3.0.
 
+## [2.1.1] - 2026-07-07
+
+### Added
+- **Battery Demo Button**: Added a dedicated "Battery" button to the Quick Test controls on the home screen to preview and test the charging island mode.
+- **Unit Tests**: Added unit tests to verify `shouldIgnoreForSmartIsland` rules for high-priority non-system apps and to check `Notification.toIslandMode()` mapping with mixed-case media actions (e.g. `"PAUSE"`, `"Next Track"`).
+
+### Changed
+- **Battery Charging Updates**: Refactored `SystemEventReceiver` to only auto-expand the battery island on charger connection (`ACTION_POWER_CONNECTED`), and to update battery percentages silently without re-triggering expand and auto-collapse cycles.
+- **Media Controller Resolution**: Improved media playback robustness by prioritizing active playing sessions (`PlaybackState.STATE_PLAYING`) when resolving media controllers by package name.
+- **Better reflection diagnostics**: Switched key reflection-based API hooks (pass-through touch insets and freeform window launching) to use `runCatchingLogged` utility for easier debugging.
+
+### Fixed
+- **License Header Typo**: Corrected `GNU GPL v3License` to `GNU GPL v3 License` in workflow, configuration, ignore, and helper files.
+- **Architecture Doc Tracked Status**: Removed `analysis.md` from `.gitignore` list to ensure the codebase analysis documentation remains fully tracked in Git.
+
 ## [2.1.0] - 2026-07-07
 
 ### Added

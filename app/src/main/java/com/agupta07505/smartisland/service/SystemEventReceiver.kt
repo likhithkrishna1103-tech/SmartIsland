@@ -20,33 +20,46 @@ class SystemEventReceiver(
     private val notificationRepository: SmartIslandNotificationRepository
 ) : BroadcastReceiver() {
 
+    private var lastBatteryPct: Int = -1
+    private var isCurrentlyCharging: Boolean = false
+
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             Intent.ACTION_POWER_CONNECTED -> {
-                updateBatteryIsland(context, isCharging = true)
+                isCurrentlyCharging = true
+                // Auto-expand ONCE when the charger is plugged in.
+                updateBatteryIsland(context, autoExpand = true)
             }
             Intent.ACTION_POWER_DISCONNECTED -> {
+                isCurrentlyCharging = false
+                lastBatteryPct = -1
                 notificationRepository.removeNotification("system_battery")
             }
             Intent.ACTION_BATTERY_CHANGED -> {
-                updateBatteryIsland(context, isCharging = isCharging(intent))
+                // Only refresh the % silently; never auto-expand on ticks.
+                if (isCharging(intent) && isCurrentlyCharging) {
+                    updateBatteryIsland(context, autoExpand = false)
+                }
             }
         }
     }
 
     private fun isCharging(intent: Intent): Boolean {
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        return status == BatteryManager.BATTERY_STATUS_CHARGING || 
+        return status == BatteryManager.BATTERY_STATUS_CHARGING ||
                status == BatteryManager.BATTERY_STATUS_FULL
     }
 
-    private fun updateBatteryIsland(context: Context, isCharging: Boolean) {
-        if (!isCharging) return
-
-        val batteryStatus: Intent? = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    private fun updateBatteryIsland(context: Context, autoExpand: Boolean) {
+        val batteryStatus: Intent? =
+            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: 0
         val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: 100
         val batteryPct = (level * 100 / scale.toFloat()).toInt()
+
+        // Skip redundant posts when the percentage hasn't changed.
+        if (!autoExpand && batteryPct == lastBatteryPct) return
+        lastBatteryPct = batteryPct
 
         notificationRepository.postNotification(
             IslandNotification(
@@ -59,7 +72,7 @@ class SystemEventReceiver(
                 icon = null,
                 timeMillis = System.currentTimeMillis()
             ),
-            autoExpand = true
+            autoExpand = autoExpand
         )
     }
 }

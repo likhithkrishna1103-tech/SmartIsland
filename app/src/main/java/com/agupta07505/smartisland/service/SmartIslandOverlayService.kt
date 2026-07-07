@@ -40,6 +40,7 @@ import com.agupta07505.smartisland.data.SmartIslandSettingsRepository
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
 import com.agupta07505.smartisland.ui.IslandOverlayView
+import com.agupta07505.smartisland.util.runCatchingLogged
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -186,7 +187,9 @@ class SmartIslandOverlayService : LifecycleService() {
                                 setTouchableInsetsMethod.invoke(info, 3) // TOUCHABLE_INSETS_REGION
                                 val touchableRegionField = sequenceOf("touchableRegion", "mTouchableRegion")
                                     .mapNotNull { name ->
-                                        runCatching { info.javaClass.getDeclaredField(name).apply { isAccessible = true } }.getOrNull()
+                                        runCatchingLogged(TAG, "Failed to get field $name") {
+                                            info.javaClass.getDeclaredField(name).apply { isAccessible = true }
+                                        }
                                     }
                                     .firstOrNull()
 
@@ -393,10 +396,11 @@ class SmartIslandOverlayService : LifecycleService() {
         if (list.isNotEmpty() && index in list.indices) {
             val notification = list[index]
             val options = ActivityOptions.makeBasic()
-            runCatching {
+            val setModeResult = runCatchingLogged(TAG, "Failed to invoke setLaunchWindowingMode") {
                 val method = options.javaClass.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
                 method.invoke(options, 5) // WINDOWING_MODE_FREEFORM = 5
-            }.onFailure {
+            }
+            if (setModeResult == null) {
                 Toast.makeText(this, "Freeform windowing mode is not supported on this device.", Toast.LENGTH_SHORT).show()
             }
             runCatching {
@@ -441,6 +445,7 @@ class SmartIslandOverlayService : LifecycleService() {
     }
 
     companion object {
+        private const val TAG = "SmartIslandOverlayService"
         private const val NOTIFICATION_ID = 8105
     }
 }

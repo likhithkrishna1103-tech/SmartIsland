@@ -39,6 +39,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Feedback
 import androidx.compose.material.icons.rounded.Info
@@ -224,7 +225,7 @@ fun SmartIslandHomeScreen() {
                             ) {
                                 Icon(Icons.Rounded.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text(stringResource(R.string.btn_notify), fontSize = 12.sp)
+                                Text(stringResource(R.string.btn_notify), fontSize = 11.sp)
                             }
                             ElevatedButton(
                                 onClick = { notificationRepository?.showDemo(IslandMode.IncomingCall) },
@@ -232,7 +233,7 @@ fun SmartIslandHomeScreen() {
                             ) {
                                 Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text(stringResource(R.string.btn_call), fontSize = 12.sp)
+                                Text(stringResource(R.string.btn_call), fontSize = 11.sp)
                             }
                             ElevatedButton(
                                 onClick = { notificationRepository?.showDemo(IslandMode.Music) },
@@ -240,7 +241,15 @@ fun SmartIslandHomeScreen() {
                             ) {
                                 Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text(stringResource(R.string.btn_music), fontSize = 12.sp)
+                                Text(stringResource(R.string.btn_music), fontSize = 11.sp)
+                            }
+                            ElevatedButton(
+                                onClick = { notificationRepository?.showDemo(IslandMode.Battery) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Rounded.BatteryChargingFull, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(stringResource(R.string.btn_battery), fontSize = 11.sp)
                             }
                         }
                     }
