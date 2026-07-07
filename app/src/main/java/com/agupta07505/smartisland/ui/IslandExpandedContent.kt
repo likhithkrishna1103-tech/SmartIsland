@@ -1,7 +1,7 @@
 /*
  * Smart Island (2026)
  * © Animesh Gupta — github.com/agupta07505
- * Licensed under the GNU GPL v3License
+ * Licensed under the GNU GPL v3 License
  * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  */
 
@@ -59,8 +59,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import com.agupta07505.smartisland.service.SmartIslandOverlayService
-import com.agupta07505.smartisland.service.SmartIslandNotificationListenerService
+import com.agupta07505.smartisland.SmartIslandApp
+import com.agupta07505.smartisland.util.formatNotificationTime
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -308,8 +308,9 @@ private fun NotificationExpanded(
                                     } else {
                                         Toast.makeText(context, "Clicked: ${action.title}", Toast.LENGTH_SHORT).show()
                                     }
-                                    SmartIslandOverlayService.removeNotification(notification.key)
-                                    SmartIslandNotificationListenerService.cancelSystemNotification(notification.key)
+                                    val repo = (context.applicationContext as SmartIslandApp).notificationRepository
+                                    repo.removeNotification(notification.key)
+                                    repo.sendCommand(com.agupta07505.smartisland.data.SmartIslandCommand.CancelNotification(notification.key))
                                     onCollapse()
                                 }
                                 .padding(horizontal = 12.dp),
@@ -680,7 +681,9 @@ private fun MusicExpanded(
                                 controller.transportControls.seekTo(newPosition)
                             }
                         } else {
-                            SmartIslandNotificationListenerService.seekTo(notification.packageName, newPosition)
+                            (context.applicationContext as SmartIslandApp).notificationRepository.sendCommand(
+                                com.agupta07505.smartisland.data.SmartIslandCommand.SeekTo(notification.packageName, newPosition)
+                            )
                         }
                     }
                 },
@@ -794,11 +797,12 @@ private fun IslandNotification?.sendFirstAction(context: Context, vararg keyword
     } ?: return
     if (action.pendingIntent != null) {
         triggerAction(context, this.packageName, action.pendingIntent, action.title, this.contentIntent)
+        val app = context.applicationContext as SmartIslandApp
         if (this.mode != IslandMode.Music) {
-            SmartIslandOverlayService.removeNotification(this.key)
-            SmartIslandNotificationListenerService.cancelSystemNotification(this.key)
+            app.notificationRepository.removeNotification(this.key)
+            app.notificationRepository.sendCommand(com.agupta07505.smartisland.data.SmartIslandCommand.CancelNotification(this.key))
         }
-        SmartIslandOverlayService.resetTimer()
+        app.notificationRepository.resetTimer()
     }
 }
 

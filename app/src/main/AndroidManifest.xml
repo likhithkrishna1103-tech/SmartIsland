@@ -2,22 +2,23 @@
 <!--
   Smart Island (2026)
   © Animesh Gupta — github.com/agupta07505
-  Licensed under the GNU GPL v3License
+  Licensed under the GNU GPL v3 License
   Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
+        android:name=".SmartIslandApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="Smart Island"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.SmartIsland">
 
         <activity

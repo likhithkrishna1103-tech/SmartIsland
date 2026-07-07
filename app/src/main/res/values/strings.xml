@@ -2,9 +2,29 @@
 <!--
   Smart Island (2026)
   © Animesh Gupta — github.com/agupta07505
-  Licensed under the GNU GPL v3License
+  Licensed under the GNU GPL v3 License
   Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
 -->
 <resources>
     <string name="app_name">Smart Island</string>
+    <string name="app_description">Smart Island reimagines Android notifications with a beautiful floating experience, interactive controls, and fluid animations—keeping everything important just a glance away.</string>
+    <string name="enable_smart_island">Enable Smart Island</string>
+    <string name="overlay_ready">Overlay service is ready</string>
+    <string name="grant_overlay">Grant overlay permission to start</string>
+    <string name="quick_test_controls">Quick Test Controls</string>
+    <string name="btn_notify">Notify</string>
+    <string name="btn_call">Call</string>
+    <string name="btn_music">Music</string>
+    <string name="configure_features">Configure Features</string>
+    <string name="sec_permissions">Permissions</string>
+    <string name="sec_permissions_desc">Overlay, notification access, system warnings status</string>
+    <string name="sec_positions">Positions</string>
+    <string name="sec_positions_desc">Adjust island width, height, corner radius &amp; offsets</string>
+    <string name="sec_support">Support &amp; Feedback</string>
+    <string name="sec_support_desc">Request features, star on GitHub, review &amp; bug report</string>
+    <string name="sec_about">About</string>
+    <string name="sec_about_desc">App version, privacy policy, terms &amp; contact developer</string>
+    <string name="status_active">Active</string>
+    <string name="status_action_required">Action Required</string>
+    <string name="made_by">Made with ❤️ by Animesh Gupta</string>
 </resources>
