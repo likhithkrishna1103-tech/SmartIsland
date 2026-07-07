@@ -4,6 +4,26 @@ All notable changes to Smart Island should be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project uses the GNU General Public License v3.0.
 
+## [2.2.0] - 2026-07-07
+
+### Added
+- **Battery Charging Island Mode**: Complete charging status indicator that slides down automatically when a charger is plugged in (`ACTION_POWER_CONNECTED`).
+- **Pulsing Battery & Gradient Animations**: Implemented pulsing charging icons (infinite scale transition) in the collapsed state and flowing multicolor gradient indicators in the expanded state.
+- **Time-until-full & Progress**: Dynamic battery percentage and charging-time remaining estimates computed directly via `BatteryManager`.
+- **Battery Demo Button**: Added a dedicated "Battery" button to the Quick Test controls on the home screen to preview and test the charging island mode.
+- **Unit Tests**: Added unit test suites verifying priority/suppression rules for non-system apps (`NotificationPriorityTest`), media controller action mappings, and `SystemEventReceiver` battery events.
+
+### Changed
+- **Reorganized Home Dashboard UI**: Restructured Quick Test buttons into a 2x2 grid layout and repositioned status texts under subtitles for improved spacing and visual appeal.
+- **Center Header Alignment**: Center-aligned the main header description text on the home screen.
+- **Battery Charging Updates**: Refactored `SystemEventReceiver` to update battery percentages silently without re-triggering expand and auto-collapse cycles.
+- **Media Controller Resolution**: Improved media playback robustness by prioritizing active playing sessions (`PlaybackState.STATE_PLAYING`) when resolving media controllers by package name.
+- **Better reflection diagnostics**: Switched key reflection-based API hooks (pass-through touch insets and freeform window launching) to use `runCatchingLogged` utility for easier debugging.
+
+### Fixed
+- **License Header Typo**: Corrected `GNU GPL v3License` to `GNU GPL v3 License` in workflow, configuration, ignore, and helper files.
+- **Architecture Doc Tracked Status**: Removed `analysis.md` from `.gitignore` list to ensure the codebase analysis documentation remains fully tracked in Git.
+
 ## [2.1.0] - 2026-07-07
 
 ### Added

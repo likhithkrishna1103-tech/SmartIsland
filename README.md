@@ -57,10 +57,11 @@ The project is designed to be transparent, hackable, and privacy-conscious: noti
 | Smooth animation | Morphs between collapsed and expanded states with Compose animations. |
 | Multiple notifications | Keeps a stack of active notifications and lets users move between them. |
 | Calls and media | Detects incoming calls, music/media sessions, artwork, playback state, and progress. |
+| Battery charging | Displays charging percentage, pulsing charging icon, and remaining charge time estimates. |
 | Quick actions | Opens, dismisses, or launches supported notification content from the expanded island. |
 | Custom controls | Lets users adjust width, height, position, and corner radius. |
 | Local settings | Persists island preferences with AndroidX DataStore Preferences. |
-| Demo modes | Includes notification, call, and music demo buttons for quick testing. |
+| Demo modes | Includes notification, call, music, and battery charging demo buttons for quick testing. |
 
 ## Architecture
 
@@ -165,6 +166,7 @@ SmartIsland/
 - Keep secrets, keystores, local SDK paths, generated APKs, and personal notification screenshots out of git.
 - Test overlay behavior on a physical device when possible; OEM Android builds can handle overlay and background-service rules differently.
 - Some floating-window behavior depends on Android version and device support.
+- The pass-through touch region and freeform "open in floating window" gesture rely on best-effort platform APIs and may be unavailable on some devices/OEM Android builds.
 - For signed GitHub Actions releases, see [docs/RELEASE_SIGNING.md](docs/RELEASE_SIGNING.md).
 
 ## Contributing

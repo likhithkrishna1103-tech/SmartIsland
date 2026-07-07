@@ -17,6 +17,7 @@ import io.mockk.spyk
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.agupta07505.smartisland.model.IslandMode
 
 class NotificationPriorityTest {
 
@@ -79,5 +80,38 @@ class NotificationPriorityTest {
         every { service.isHighPriorityNotification(sbn, notification) } returns true
 
         assertTrue(service.shouldIgnoreForSmartIsland(sbn))
+    }
+
+    @Test
+    fun testHighPriorityNonSystemIsNotIgnored() {
+        val service = spyk<SmartIslandNotificationListenerService>()
+        val sbn = mockk<StatusBarNotification>()
+        val notification = mockk<Notification>()
+        val pm = mockk<PackageManager>()
+        every { service.packageManager } returns pm
+        every { pm.getApplicationInfo(any<String>(), any<Int>()) } throws PackageManager.NameNotFoundException()
+
+        notification.category = Notification.CATEGORY_MESSAGE
+        every { sbn.notification } returns notification
+        every { sbn.packageName } returns "com.example.chat"   // NOT a system package
+        every { service.isHighPriorityNotification(sbn, notification) } returns true
+
+        // High priority but ordinary app + ordinary category => keep it (don't ignore).
+        assertFalse(service.shouldIgnoreForSmartIsland(sbn))
+    }
+
+    @Test
+    fun testToIslandModeWithMediaActionEdgeCases() {
+        val testLabels = listOf("PAUSE", "Next Track", "PLAY", "previous song")
+        for (label in testLabels) {
+            val notification = mockk<Notification>()
+            notification.category = null
+            val action = mockk<Notification.Action>()
+            action.title = label
+            notification.actions = arrayOf(action)
+
+            val mode = notification.toIslandMode()
+            org.junit.Assert.assertEquals(IslandMode.Music, mode)
+        }
     }
 }

@@ -50,7 +50,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
                         runCatching { cancelNotification(command.key) }
                     }
                     is SmartIslandCommand.SeekTo -> {
-                        val controller = activeMediaControllers.firstOrNull { it.packageName == command.packageName }
+                        val controller = bestControllerFor(command.packageName)
                         if (controller != null) {
                             runCatching { controller.transportControls.seekTo(command.positionMs) }
                         }
@@ -260,9 +260,18 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         }
     }
 
+    private fun controllersFor(packageName: String): List<MediaController> =
+        activeMediaControllers.filter { it.packageName == packageName }
+
+    private fun bestControllerFor(packageName: String): MediaController? {
+        val matches = controllersFor(packageName)
+        return matches.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+            ?: matches.firstOrNull()
+    }
+
     private fun findMediaInfo(notification: Notification, packageName: String): MediaInfo? {
         notification.mediaSessionController()?.extractMediaInfo()?.let { return it }
-        val controller = activeMediaControllers.firstOrNull { it.packageName == packageName } ?: return null
+        val controller = bestControllerFor(packageName) ?: return null
         return controller.extractMediaInfo()
     }
 

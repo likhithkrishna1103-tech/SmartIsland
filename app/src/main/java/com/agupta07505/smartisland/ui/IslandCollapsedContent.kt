@@ -15,6 +15,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -23,11 +24,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,6 +70,27 @@ fun IslandCollapsedContent(
     val translationProgress = 1f - collapsedAlpha
     val translationXLeft = translationProgress * maxTranslationPx
     val translationXRight = -translationProgress * maxTranslationPx
+
+    val infiniteTransition = rememberInfiniteTransition(label = "batteryPulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "batteryScale"
+    )
+
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dottedRingRotation"
+    )
 
     Box(modifier = modifier.fillMaxSize()) {
         // Left Slot (Icon / Glyphs)
@@ -124,6 +151,33 @@ fun IslandCollapsedContent(
                         }
                     }
                 }
+                IslandMode.Battery -> {
+                    val pctText = notification?.text?.replace("%", "")?.trim() ?: "49"
+                    val pct = pctText.toFloatOrNull() ?: 49f
+                    val progress = (pct / 100f).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier.size(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        DottedRing(
+                            progress = progress,
+                            rotationAngle = rotationAngle,
+                            modifier = Modifier.size(22.dp),
+                            color = Color(0xFF10B981)
+                        )
+                        Icon(
+                            Icons.Rounded.Bolt,
+                            contentDescription = "Charging",
+                            tint = Color(0xFF10B981),
+                            modifier = Modifier
+                                .size(14.dp)
+                                .graphicsLayer {
+                                    scaleX = pulseScale
+                                    scaleY = pulseScale
+                                }
+                        )
+                    }
+                }
                 IslandMode.Empty -> Unit
             }
         }
@@ -157,11 +211,18 @@ fun IslandCollapsedContent(
                         color = Color(0xFFFF6B9A)
                     )
                 }
+                IslandMode.Battery -> {
+                    Text(
+                        text = notification?.text ?: "49%",
+                        color = Color(0xFF10B981),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 IslandMode.Empty -> Unit
             }
         }
 
-        // Central Notch / Camera cutout mimic
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -169,6 +230,29 @@ fun IslandCollapsedContent(
                 .clip(CircleShape)
                 .background(Color.Black)
         )
+    }
+}
+
+@Composable
+private fun DottedRing(
+    progress: Float,
+    rotationAngle: Float,
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF10B981)
+) {
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val radius = size.minDimension / 2f
+        val dotRadius = 1.2.dp.toPx()
+        val numDots = 16
+        val activeDotsCount = (numDots * progress).toInt()
+        for (i in 0 until numDots) {
+            val angle = (-90f + rotationAngle + i * 360f / numDots) * (Math.PI / 180f)
+            val x = (center.x + radius * Math.cos(angle)).toFloat()
+            val y = (center.y + radius * Math.sin(angle)).toFloat()
+            val isActive = i < activeDotsCount
+            val dotColor = if (isActive) color else Color(0x33FFFFFF)
+            drawCircle(color = dotColor, radius = dotRadius, center = androidx.compose.ui.geometry.Offset(x, y))
+        }
     }
 }
 

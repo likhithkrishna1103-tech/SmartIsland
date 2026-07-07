@@ -13,6 +13,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.os.Build
 import android.provider.Settings
@@ -39,6 +40,7 @@ import com.agupta07505.smartisland.data.SmartIslandSettingsRepository
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
 import com.agupta07505.smartisland.ui.IslandOverlayView
+import com.agupta07505.smartisland.util.runCatchingLogged
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -55,6 +57,7 @@ class SmartIslandOverlayService : LifecycleService() {
     private val notificationsState = MutableStateFlow<List<IslandNotification>>(emptyList())
     private val selectedIndexState = MutableStateFlow(0)
     private var autoCollapseJob: kotlinx.coroutines.Job? = null
+    private lateinit var systemEventReceiver: SystemEventReceiver
 
     override fun onCreate() {
         super.onCreate()
@@ -63,6 +66,14 @@ class SmartIslandOverlayService : LifecycleService() {
         val app = application as SmartIslandApp
         repository = app.settingsRepository
         notificationRepository = app.notificationRepository
+        
+        systemEventReceiver = SystemEventReceiver(notificationRepository)
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
+            addAction(Intent.ACTION_BATTERY_CHANGED)
+        }
+        registerReceiver(systemEventReceiver, filter)
 
         overlayOwners.resume()
         startForeground(NOTIFICATION_ID, buildServiceNotification())
@@ -125,6 +136,7 @@ class SmartIslandOverlayService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        unregisterReceiver(systemEventReceiver)
         removeCollapsedWindow()
         overlayOwners.destroy()
         super.onDestroy()
@@ -175,7 +187,9 @@ class SmartIslandOverlayService : LifecycleService() {
                                 setTouchableInsetsMethod.invoke(info, 3) // TOUCHABLE_INSETS_REGION
                                 val touchableRegionField = sequenceOf("touchableRegion", "mTouchableRegion")
                                     .mapNotNull { name ->
-                                        runCatching { info.javaClass.getDeclaredField(name).apply { isAccessible = true } }.getOrNull()
+                                        runCatchingLogged(TAG, "Failed to get field $name") {
+                                            info.javaClass.getDeclaredField(name).apply { isAccessible = true }
+                                        }
                                     }
                                     .firstOrNull()
 
@@ -382,10 +396,11 @@ class SmartIslandOverlayService : LifecycleService() {
         if (list.isNotEmpty() && index in list.indices) {
             val notification = list[index]
             val options = ActivityOptions.makeBasic()
-            runCatching {
+            val setModeResult = runCatchingLogged(TAG, "Failed to invoke setLaunchWindowingMode") {
                 val method = options.javaClass.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
                 method.invoke(options, 5) // WINDOWING_MODE_FREEFORM = 5
-            }.onFailure {
+            }
+            if (setModeResult == null) {
                 Toast.makeText(this, "Freeform windowing mode is not supported on this device.", Toast.LENGTH_SHORT).show()
             }
             runCatching {
@@ -430,6 +445,7 @@ class SmartIslandOverlayService : LifecycleService() {
     }
 
     companion object {
+        private const val TAG = "SmartIslandOverlayService"
         private const val NOTIFICATION_ID = 8105
     }
 }

@@ -48,7 +48,14 @@ graph TD
   * **Background Activity Launch (Android 14+):** Configures `PendingIntent` execution with background activity start permissions to ensure seamless launching of target apps from overlays.
   * **Freeform Window Launching:** Enables notifications to be opened in a floating window (Freeform Mode) by setting the launch windowing mode to `5` (`WINDOWING_MODE_FREEFORM`) and calculating coordinates to position it center-screen.
 
-### 2.3. `OverlayViewTreeOwners`
+### 2.3. `SystemEventReceiver`
+* **File:** [SystemEventReceiver.kt](file:///a:/SmartIsland/app/src/main/java/com/agupta07505/smartisland/service/SystemEventReceiver.kt)
+* **Purpose:** A broadcast receiver listening for power connection status and battery state changes.
+* **Key Mechanisms:**
+  * **Charging Detection:** Registers for `ACTION_POWER_CONNECTED` to post a battery charging notification with `autoExpand = true` and `ACTION_POWER_DISCONNECTED` to clear the battery state.
+  * **Battery Level Updates:** Observes `ACTION_BATTERY_CHANGED` to retrieve battery level percentage and updates the repository state silently (`autoExpand = false`) to deduplicate unchanged percentages and avoid unnecessary auto-expand animations.
+
+### 2.4. `OverlayViewTreeOwners`
 * **File:** [OverlayViewTreeOwners.kt](file:///a:/SmartIsland/app/src/main/java/com/agupta07505/smartisland/service/OverlayViewTreeOwners.kt)
 * **Purpose:** Provides custom implementations of `LifecycleOwner`, `ViewModelStoreOwner`, and `SavedStateRegistryOwner` for the overlay view tree.
 * **Why it's needed:** Because the Compose overlay resides in a background Service rather than an Activity, Compose views need these owners explicitly attached to prevent runtime crashes (e.g. during animations or recompositions that access ViewModel or SavedState context).
@@ -107,6 +114,7 @@ graph TD
     * Notification: Blue dot.
     * Call: Active call timer displaying elapsed duration in `MM:SS` format (green text).
     * Music: Live 3-bar Audio Visualizer animation powered by Compose `infiniteRepeatable` states.
+    * Battery: Pulsing charging battery icon (infinite scale transition) next to the charging percentage text.
 
 ### 4.4. `IslandExpandedContent`
 * **File:** [IslandExpandedContent.kt](file:///a:/SmartIsland/app/src/main/java/com/agupta07505/smartisland/ui/IslandExpandedContent.kt)
@@ -118,6 +126,7 @@ graph TD
     1. **Notification:** Shows title, description, time, custom actions (e.g. Telegram "Reply" button which opens chat due to focus constraints), and a button to open the full app.
     2. **Incoming Call:** Large caller name and green/red answer/reject circular buttons.
     3. **Music:** Large album art, song/artist text, media control buttons (Previous, Play/Pause, Next), and a progress slider that estimates track position locally in a coroutine loop to avoid lag.
+    4. **Battery:** A custom battery charging visual progress layout featuring a circular status indicator with flowing multicolor gradients, dynamic charging time remaining estimates, and large charging percentage display.
 
 ### 4.5. Custom Modifiers
 * **`bounceClick`:** ([BounceClick.kt](file:///a:/SmartIsland/app/src/main/java/com/agupta07505/smartisland/ui/BounceClick.kt)) Anicates button scale down to `0.94f` on press and runs callbacks upon release for premium haptic simulation.
