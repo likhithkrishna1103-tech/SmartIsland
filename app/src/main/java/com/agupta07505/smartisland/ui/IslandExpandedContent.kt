@@ -46,6 +46,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -856,6 +863,17 @@ private fun BatteryExpanded(
     val pct = pctText.toFloatOrNull() ?: 0f
     val progress = (pct / 100f).coerceIn(0f, 1f)
 
+    val flowTransition = rememberInfiniteTransition(label = "electricFlow")
+    val flowOffset by flowTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "flowOffset"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -888,7 +906,16 @@ private fun BatteryExpanded(
                         .fillMaxWidth(progress)
                         .background(
                             brush = Brush.horizontalGradient(
-                                colors = listOf(Color(0xFF34D399), Color(0xFF10B981))
+                                colors = listOf(
+                                    Color(0xFF10B981),
+                                    Color(0xFF34D399),
+                                    Color(0xFF6EE7B7),
+                                    Color(0xFF34D399),
+                                    Color(0xFF10B981)
+                                ),
+                                startX = flowOffset,
+                                endX = flowOffset + 300f,
+                                tileMode = TileMode.Repeated
                             ),
                             shape = RoundedCornerShape(7.dp)
                         )

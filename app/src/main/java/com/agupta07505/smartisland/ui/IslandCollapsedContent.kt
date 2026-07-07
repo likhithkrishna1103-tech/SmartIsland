@@ -66,6 +66,17 @@ fun IslandCollapsedContent(
     val translationXLeft = translationProgress * maxTranslationPx
     val translationXRight = -translationProgress * maxTranslationPx
 
+    val infiniteTransition = rememberInfiniteTransition(label = "batteryPulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "batteryScale"
+    )
+
     Box(modifier = modifier.fillMaxSize()) {
         // Left Slot (Icon / Glyphs)
         Box(
@@ -130,7 +141,12 @@ fun IslandCollapsedContent(
                         Icons.Rounded.BatteryChargingFull,
                         contentDescription = "Charging",
                         tint = Color(0xFF10B981),
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier
+                            .size(16.dp)
+                            .graphicsLayer {
+                                scaleX = pulseScale
+                                scaleY = pulseScale
+                            }
                     )
                 }
                 IslandMode.Empty -> Unit
