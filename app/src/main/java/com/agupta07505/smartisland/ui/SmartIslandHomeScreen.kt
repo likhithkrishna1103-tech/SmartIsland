@@ -215,41 +215,51 @@ fun SmartIslandHomeScreen() {
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(bottom = 10.dp)
                         )
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            ElevatedButton(
-                                onClick = { notificationRepository?.showDemo(IslandMode.Notification) },
-                                modifier = Modifier.weight(1f)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Rounded.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(stringResource(R.string.btn_notify), fontSize = 11.sp)
+                                ElevatedButton(
+                                    onClick = { notificationRepository?.showDemo(IslandMode.Notification) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Rounded.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringResource(R.string.btn_notify), fontSize = 11.sp)
+                                }
+                                ElevatedButton(
+                                    onClick = { notificationRepository?.showDemo(IslandMode.IncomingCall) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringResource(R.string.btn_call), fontSize = 11.sp)
+                                }
                             }
-                            ElevatedButton(
-                                onClick = { notificationRepository?.showDemo(IslandMode.IncomingCall) },
-                                modifier = Modifier.weight(1f)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(stringResource(R.string.btn_call), fontSize = 11.sp)
-                            }
-                            ElevatedButton(
-                                onClick = { notificationRepository?.showDemo(IslandMode.Music) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(stringResource(R.string.btn_music), fontSize = 11.sp)
-                            }
-                            ElevatedButton(
-                                onClick = { notificationRepository?.showDemo(IslandMode.Battery) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Rounded.BatteryChargingFull, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(stringResource(R.string.btn_battery), fontSize = 11.sp)
+                                ElevatedButton(
+                                    onClick = { notificationRepository?.showDemo(IslandMode.Music) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringResource(R.string.btn_music), fontSize = 11.sp)
+                                }
+                                ElevatedButton(
+                                    onClick = { notificationRepository?.showDemo(IslandMode.Battery) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Rounded.BatteryChargingFull, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringResource(R.string.btn_battery), fontSize = 11.sp)
+                                }
                             }
                         }
                     }
@@ -444,23 +454,23 @@ private fun SectionRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFF667085)
                 )
+                if (statusText != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(statusColor.copy(alpha = 0.15f), shape = RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = statusText,
+                            color = statusColor,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.width(8.dp))
-            if (statusText != null) {
-                Box(
-                    modifier = Modifier
-                        .background(statusColor.copy(alpha = 0.15f), shape = RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = statusText,
-                        color = statusColor,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-            }
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
