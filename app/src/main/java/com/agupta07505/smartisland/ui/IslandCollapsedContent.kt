@@ -15,6 +15,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -79,6 +80,16 @@ fun IslandCollapsedContent(
             repeatMode = RepeatMode.Reverse
         ),
         label = "batteryScale"
+    )
+
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dottedRingRotation"
     )
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -148,7 +159,12 @@ fun IslandCollapsedContent(
                         modifier = Modifier.size(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        DottedRing(progress = progress, modifier = Modifier.size(22.dp), color = Color(0xFF10B981))
+                        DottedRing(
+                            progress = progress,
+                            rotationAngle = rotationAngle,
+                            modifier = Modifier.size(22.dp),
+                            color = Color(0xFF10B981)
+                        )
                         Icon(
                             Icons.Rounded.Bolt,
                             contentDescription = "Charging",
@@ -231,6 +247,7 @@ fun IslandCollapsedContent(
 @Composable
 private fun DottedRing(
     progress: Float,
+    rotationAngle: Float,
     modifier: Modifier = Modifier,
     color: Color = Color(0xFF10B981)
 ) {
@@ -240,7 +257,7 @@ private fun DottedRing(
         val numDots = 16
         val activeDotsCount = (numDots * progress).toInt()
         for (i in 0 until numDots) {
-            val angle = (-90f + i * 360f / numDots) * (Math.PI / 180f)
+            val angle = (-90f + rotationAngle + i * 360f / numDots) * (Math.PI / 180f)
             val x = (center.x + radius * Math.cos(angle)).toFloat()
             val y = (center.y + radius * Math.sin(angle)).toFloat()
             val isActive = i < activeDotsCount

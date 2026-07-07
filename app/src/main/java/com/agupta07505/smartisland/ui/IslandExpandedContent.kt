@@ -54,6 +54,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -866,6 +868,36 @@ private fun BatteryExpanded(
     val pct = pctText.toFloatOrNull() ?: 49f
     val progress = (pct / 100f).coerceIn(0f, 1f)
 
+    // Animatable progress slide up
+    val animatedProgress = remember { Animatable(0f) }
+    LaunchedEffect(progress) {
+        animatedProgress.animateTo(
+            targetValue = progress,
+            animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
+        )
+    }
+
+    val flowTransition = rememberInfiniteTransition(label = "electricFlow")
+    val flowOffset by flowTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "flowOffset"
+    )
+
+    val rotationAngle by flowTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 6000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dottedRingRotation"
+    )
+
     val timeText = remember(pct) {
         val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
         val remainingMs = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
@@ -903,7 +935,12 @@ private fun BatteryExpanded(
                 modifier = Modifier.size(54.dp),
                 contentAlignment = Alignment.Center
             ) {
-                DottedRing(modifier = Modifier.size(50.dp), color = Color(0xFF10B981))
+                DottedRing(
+                    progress = progress,
+                    rotationAngle = rotationAngle,
+                    modifier = Modifier.size(50.dp),
+                    color = Color(0xFF10B981)
+                )
                 
                 Box(
                     modifier = Modifier
@@ -969,7 +1006,7 @@ private fun BatteryExpanded(
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .fillMaxWidth(progress)
+                        .fillMaxWidth(animatedProgress.value)
                         .background(
                             brush = Brush.horizontalGradient(
                                 colors = listOf(
@@ -1012,16 +1049,24 @@ private fun BatteryExpanded(
 }
 
 @Composable
-private fun DottedRing(modifier: Modifier = Modifier, color: Color = Color(0xFF10B981)) {
+private fun DottedRing(
+    progress: Float,
+    rotationAngle: Float,
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF10B981)
+) {
     androidx.compose.foundation.Canvas(modifier = modifier) {
         val radius = size.minDimension / 2f
         val dotRadius = 1.2.dp.toPx()
         val numDots = 16
+        val activeDotsCount = (numDots * progress).toInt()
         for (i in 0 until numDots) {
-            val angle = (i * 360f / numDots) * (Math.PI / 180f)
+            val angle = (-90f + rotationAngle + i * 360f / numDots) * (Math.PI / 180f)
             val x = (center.x + radius * Math.cos(angle)).toFloat()
             val y = (center.y + radius * Math.sin(angle)).toFloat()
-            drawCircle(color = color, radius = dotRadius, center = androidx.compose.ui.geometry.Offset(x, y))
+            val isActive = i < activeDotsCount
+            val dotColor = if (isActive) color else Color(0x33FFFFFF)
+            drawCircle(color = dotColor, radius = dotRadius, center = androidx.compose.ui.geometry.Offset(x, y))
         }
     }
 }
