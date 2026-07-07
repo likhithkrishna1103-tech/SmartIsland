@@ -61,9 +61,9 @@ The project is designed to be transparent, hackable, and privacy-conscious: noti
 ```mermaid
 flowchart LR
     A[Android notifications] --> B[SmartIslandNotificationListenerService]
-    B --> C[IslandNotification model]
-    C --> D[SmartIslandOverlayService]
-    E[DataStore settings] --> D
+    B --> Repo[SmartIslandNotificationRepository]
+    E[DataStore settings] --> Repo
+    Repo --> D[SmartIslandOverlayService]
     D --> F[WindowManager overlay]
     F --> G[Jetpack Compose island UI]
     G --> H[Open, dismiss, expand, or launch floating window]

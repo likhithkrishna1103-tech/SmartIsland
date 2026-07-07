@@ -4,6 +4,28 @@ All notable changes to Smart Island should be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project uses the GNU General Public License v3.0.
 
+## [2.1.0] - 2026-07-07
+
+### Added
+
+- **Centralized Notification Repository (`SmartIslandNotificationRepository`)**: Created to manage notification streams and commands flow reactively.
+- **Dependency Injection**: Registered `SmartIslandApp` Application class to hold repositories singletons.
+- **Material 3 Unified Theme**: Introduced day/night theme structure with DayNight Material3 scheme support.
+- **Automated Tests**: Created JUnit/MockK test suites: `IslandModeMappingTest`, `NotificationPriorityTest`, `SmartIslandSettingsTest`.
+- **Utility Modules**: Created isolated helper scripts `TimeUtils` and `LogUtils`.
+
+### Changed
+
+- **Modularized UI Structure**: Split monolithic screen `SmartIslandHomeScreen.kt` into clean components: `HeaderSection`, `PermissionsSection`, `PositionsSection`, `SupportSection`, and `AboutSection`.
+- **Decoupled Architecture**: Migrated views `IslandOverlayView.kt` and `IslandExpandedContent.kt` from calling static service instances to reactively communicating via repositories.
+- **Resource Maintainability**: Moved hardcoded screen UI strings into standard `strings.xml` resource tags.
+- **Build Configurations**: Enabled ProGuard/R8 minification, resource shrinking, and strict lint checks in `build.gradle.kts`.
+
+### Fixed
+
+- **License Header Typo**: Corrected `GNU GPL v3License` to `GNU GPL v3 License` globally.
+- **Theme Parent Reference**: Migrated parent configuration in `styles.xml` to `Theme.DeviceDefault.NoActionBar` to prevent XML resource linking compilation errors.
+
 ## [2.0.0] - 2026-07-05
 
 ### Added
