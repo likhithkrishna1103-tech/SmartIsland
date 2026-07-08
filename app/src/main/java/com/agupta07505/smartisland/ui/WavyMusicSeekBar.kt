@@ -48,21 +48,20 @@ fun WavyMusicSeekBar(
 ) {
     var phase by remember { mutableStateOf(0f) }
 
-    if (isPlaying) {
-        LaunchedEffect(Unit) {
-            val startTime = android.os.SystemClock.elapsedRealtime()
-            var lastTime = startTime
-            while (true) {
-                val now = android.os.SystemClock.elapsedRealtime()
-                val delta = now - lastTime
-                lastTime = now
-                // Progress the phase: 1.5 cycles per second
-                phase += (delta / 1000f) * 1.5f * 2f * Math.PI.toFloat()
-                if (phase > 2f * Math.PI.toFloat()) {
-                    phase -= 2f * Math.PI.toFloat()
-                }
-                kotlinx.coroutines.delay(16)
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) return@LaunchedEffect
+        val startTime = android.os.SystemClock.elapsedRealtime()
+        var lastTime = startTime
+        while (true) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val delta = now - lastTime
+            lastTime = now
+            // Progress the phase: 1.5 cycles per second
+            phase += (delta / 1000f) * 1.5f * 2f * Math.PI.toFloat()
+            if (phase > 2f * Math.PI.toFloat()) {
+                phase -= 2f * Math.PI.toFloat()
             }
+            kotlinx.coroutines.delay(16)
         }
     }
 

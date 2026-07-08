@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.agupta07505.smartisland.ui.components.ClickableRowItem
 
 @Composable
 fun AboutSection() {
@@ -55,17 +56,17 @@ fun AboutSection() {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                AboutItem(
+                ClickableRowItem(
                     label = "Version",
                     value = getAppVersion(context),
                     icon = Icons.Rounded.Info,
                     onClick = {}
                 )
-                AboutItem(
+                ClickableRowItem(
                     label = "Privacy Policy",
                     icon = Icons.Rounded.Lock,
                     onClick = {
@@ -73,7 +74,7 @@ fun AboutSection() {
                         runCatching { context.startActivity(intent) }
                     }
                 )
-                AboutItem(
+                ClickableRowItem(
                     label = "Terms of Use",
                     icon = Icons.Rounded.Description,
                     onClick = {
@@ -81,7 +82,7 @@ fun AboutSection() {
                         runCatching { context.startActivity(intent) }
                     }
                 )
-                AboutItem(
+                ClickableRowItem(
                     label = "Open Source",
                     icon = Icons.Rounded.Code,
                     onClick = {
@@ -95,11 +96,11 @@ fun AboutSection() {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                Text("Contact me", style = MaterialTheme.typography.titleSmall, color = Color(0xFF667085), fontWeight = FontWeight.SemiBold)
+                Text("Contact me", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
@@ -107,7 +108,7 @@ fun AboutSection() {
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ContactButton(
-                        icon = { GithubIcon(tint = Color(0xFF1F2937)) },
+                        icon = { GithubIcon(tint = MaterialTheme.colorScheme.onSurface) },
                         label = "GitHub",
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/agupta07505"))
@@ -157,53 +158,7 @@ fun AboutSection() {
     }
 }
 
-@Composable
-private fun AboutItem(
-    label: String,
-    icon: ImageVector,
-    value: String? = null,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = value == null, onClick = onClick)
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Color(0xFF667085),
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF344054)
-            )
-        }
-        if (value != null) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF98A2B3)
-            )
-        } else {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFF98A2B3),
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
+
 
 @Composable
 private fun ContactButton(
@@ -226,7 +181,7 @@ private fun ContactButton(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = Color(0xFF344054),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium
             )
         }

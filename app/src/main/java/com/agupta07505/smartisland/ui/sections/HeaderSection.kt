@@ -81,13 +81,13 @@ fun HeaderSection() {
         Text(
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineLarge,
-            color = Color(0xFF101828),
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = stringResource(R.string.app_description),
-            color = Color(0xFF667085),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
         )

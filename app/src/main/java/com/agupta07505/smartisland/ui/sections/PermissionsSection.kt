@@ -62,7 +62,7 @@ fun PermissionsSection(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Row(
@@ -86,7 +86,7 @@ fun PermissionsSection(
                     Text(
                         text = "Redirect to notification settings to hide the \"displaying over other apps\" alert.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF5C6675)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Button(onClick = {

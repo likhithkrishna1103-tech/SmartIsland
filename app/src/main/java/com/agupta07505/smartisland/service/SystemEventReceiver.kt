@@ -56,17 +56,23 @@ class SystemEventReceiver(
         val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: 0
         val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: 100
         val batteryPct = (level * 100 / scale.toFloat()).toInt()
+        val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
 
         // Skip redundant posts when the percentage hasn't changed.
         if (!autoExpand && batteryPct == lastBatteryPct) return
         lastBatteryPct = batteryPct
+
+        val title = when (status) {
+            BatteryManager.BATTERY_STATUS_FULL -> "Fully Charged"
+            else -> "Charging"
+        }
 
         notificationRepository.postNotification(
             IslandNotification(
                 key = "system_battery",
                 packageName = "com.android.systemui",
                 appName = "System",
-                title = "Charging",
+                title = title,
                 text = "$batteryPct%",
                 mode = IslandMode.Battery,
                 icon = null,

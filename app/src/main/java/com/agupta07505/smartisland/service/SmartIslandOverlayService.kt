@@ -243,7 +243,7 @@ class SmartIslandOverlayService : LifecycleService() {
     private fun startAutoCollapseTimer() {
         autoCollapseJob?.cancel()
         autoCollapseJob = lifecycleScope.launch {
-            kotlinx.coroutines.delay(5000)
+            kotlinx.coroutines.delay(AUTO_COLLAPSE_DELAY_MS)
             collapse()
         }
     }
@@ -281,12 +281,12 @@ class SmartIslandOverlayService : LifecycleService() {
             x = 0
             y = settings.yOffset.dpToPx()
         }
-        runCatching { windowManager.updateViewLayout(view, params) }
+        runCatchingLogged(TAG, "Failed to update view layout") { windowManager.updateViewLayout(view, params) }
     }
 
     private fun removeCollapsedWindow() {
         islandView?.let { view ->
-            runCatching { windowManager.removeView(view) }
+            runCatchingLogged(TAG, "Failed to remove view") { windowManager.removeView(view) }
         }
         islandView = null
     }
@@ -358,12 +358,16 @@ class SmartIslandOverlayService : LifecycleService() {
                 val options = ActivityOptions.makeBasic()
                     .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
                     .toBundle()
-                runCatching { notification.contentIntent.send(this, 0, null, null, null, null, options) }
+                runCatchingLogged(TAG, "Failed to send content intent with options") {
+                    notification.contentIntent.send(this, 0, null, null, null, null, options)
+                }
             } else {
-                runCatching { notification.contentIntent.send() }
+                runCatchingLogged(TAG, "Failed to send content intent") {
+                    notification.contentIntent.send()
+                }
             }
         } else {
-            runCatching {
+            runCatchingLogged(TAG, "Failed to launch package activity") {
                 val launchIntent = packageManager.getLaunchIntentForPackage(notification.packageName)
                 if (launchIntent != null) {
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -394,16 +398,23 @@ class SmartIslandOverlayService : LifecycleService() {
         val list = notificationsState.value
         val index = selectedIndexState.value
         if (list.isNotEmpty() && index in list.indices) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+                Toast.makeText(this, "Floating window requires Android 7+.", Toast.LENGTH_SHORT).show()
+                collapse()
+                return
+            }
             val notification = list[index]
             val options = ActivityOptions.makeBasic()
             val setModeResult = runCatchingLogged(TAG, "Failed to invoke setLaunchWindowingMode") {
                 val method = options.javaClass.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
-                method.invoke(options, 5) // WINDOWING_MODE_FREEFORM = 5
+                method.invoke(options, WINDOWING_MODE_FREEFORM)
             }
             if (setModeResult == null) {
                 Toast.makeText(this, "Freeform windowing mode is not supported on this device.", Toast.LENGTH_SHORT).show()
+                collapse()
+                return
             }
-            runCatching {
+            runCatchingLogged(TAG, "Failed to set launch bounds") {
                 val displayMetrics = resources.displayMetrics
                 val screenWidth = displayMetrics.widthPixels
                 val screenHeight = displayMetrics.heightPixels
@@ -414,13 +425,17 @@ class SmartIslandOverlayService : LifecycleService() {
                 options.setLaunchBounds(android.graphics.Rect(left, top, left + w, top + h))
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                runCatching { options.setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED) }
+                runCatchingLogged(TAG, "Failed to set background activity start mode") {
+                    options.setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                }
             }
             val bundle = options.toBundle()
             if (notification.contentIntent != null) {
-                runCatching { notification.contentIntent.send(this, 0, null, null, null, null, bundle) }
+                runCatchingLogged(TAG, "Failed to send content intent") {
+                    notification.contentIntent.send(this, 0, null, null, null, null, bundle)
+                }
             } else {
-                runCatching {
+                runCatchingLogged(TAG, "Failed to launch package activity") {
                     val launchIntent = packageManager.getLaunchIntentForPackage(notification.packageName)
                     if (launchIntent != null) {
                         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -447,6 +462,8 @@ class SmartIslandOverlayService : LifecycleService() {
     companion object {
         private const val TAG = "SmartIslandOverlayService"
         private const val NOTIFICATION_ID = 8105
+        private const val AUTO_COLLAPSE_DELAY_MS = 5000L
+        private const val WINDOWING_MODE_FREEFORM = 5
     }
 }
 

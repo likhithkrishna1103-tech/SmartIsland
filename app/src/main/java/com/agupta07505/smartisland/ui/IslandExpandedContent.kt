@@ -48,6 +48,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
+import com.agupta07505.smartisland.ui.components.DottedRing
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -1048,26 +1049,5 @@ private fun BatteryExpanded(
     }
 }
 
-@Composable
-private fun DottedRing(
-    progress: Float,
-    rotationAngle: Float,
-    modifier: Modifier = Modifier,
-    color: Color = Color(0xFF10B981)
-) {
-    androidx.compose.foundation.Canvas(modifier = modifier) {
-        val radius = size.minDimension / 2f
-        val dotRadius = 1.2.dp.toPx()
-        val numDots = 16
-        val activeDotsCount = (numDots * progress).toInt()
-        for (i in 0 until numDots) {
-            val angle = (-90f + rotationAngle + i * 360f / numDots) * (Math.PI / 180f)
-            val x = (center.x + radius * Math.cos(angle)).toFloat()
-            val y = (center.y + radius * Math.sin(angle)).toFloat()
-            val isActive = i < activeDotsCount
-            val dotColor = if (isActive) color else Color(0x33FFFFFF)
-            drawCircle(color = dotColor, radius = dotRadius, center = androidx.compose.ui.geometry.Offset(x, y))
-        }
-    }
-}
+
 

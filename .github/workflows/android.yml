@@ -63,6 +63,12 @@ jobs:
       - name: Make Gradle Executable
         run: chmod +x ./gradlew
 
+      - name: Run Lint
+        run: ./gradlew lintDebug
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
+
       - name: Build Debug APK
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev'
         run: ./gradlew assembleDebug
