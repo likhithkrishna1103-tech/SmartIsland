@@ -58,24 +58,22 @@ class SmartIslandOverlayService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
         
-        // CRASH FIX: startForeground IMMEDIATELY
         runCatchingLogged(TAG, "startForeground failed") {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // Android 14+ – FGS type MUST match manifest
                 startForeground(
                     NOTIFICATION_ID,
                     buildServiceNotification(),
                     android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
                 )
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    buildServiceNotification(),
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST
-                )
             } else {
+                // Android 8-13 – 2-arg version
+                // NEVER use FOREGROUND_SERVICE_TYPE_MANIFEST (-1) here –
+                // it throws IllegalArgumentException: foregroundServiceType 0xffffffff
                 startForeground(NOTIFICATION_ID, buildServiceNotification())
             }
         } ?: run {
+            android.util.Log.e(TAG, "startForeground failed – stopping to avoid crash loop")
             stopSelf()
             return
         }
@@ -308,7 +306,7 @@ class SmartIslandOverlayService : LifecycleService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         return androidx.core.app.NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_smart_island)
             .setContentTitle("Smart Island is running")
             .setContentText("Floating island overlay is active.")
             .setOngoing(true)
