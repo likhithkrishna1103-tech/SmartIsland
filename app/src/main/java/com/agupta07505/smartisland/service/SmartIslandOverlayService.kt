@@ -110,7 +110,7 @@ class SmartIslandOverlayService : LifecycleService() {
         }
 
         lifecycleScope.launch {
-            viewModel.settings.collect { settings ->
+            repository.settings.collect { settings ->
                 if (!settings.enabled) {
                     stopSelf()
                 } else if (Settings.canDrawOverlays(this@SmartIslandOverlayService)) {
@@ -164,7 +164,7 @@ class SmartIslandOverlayService : LifecycleService() {
         try {
             islandView = ComposeView(this).apply {
                 installOverlayViewTreeOwners()
-                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                 setContent {
                     OverlayIsland(
                         viewModel = this@SmartIslandOverlayService.viewModel,
