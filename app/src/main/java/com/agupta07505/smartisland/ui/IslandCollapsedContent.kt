@@ -210,7 +210,7 @@ private fun BatteryCollapsedGlyph(notification: IslandNotification?) {
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5000, easing = LinearEasing),
+            animation = tween(durationMillis = 8000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "dottedRingRotation"

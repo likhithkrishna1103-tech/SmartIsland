@@ -79,7 +79,7 @@ fun BatteryExpanded(
         initialValue = 0f,
         targetValue = 1000f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            animation = tween(durationMillis = 5000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "flowOffset"
@@ -89,7 +89,7 @@ fun BatteryExpanded(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 6000, easing = LinearEasing),
+            animation = tween(durationMillis = 8000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "dottedRingRotation"
