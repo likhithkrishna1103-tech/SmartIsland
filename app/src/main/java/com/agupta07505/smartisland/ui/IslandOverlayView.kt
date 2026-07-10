@@ -94,6 +94,12 @@ fun IslandOverlayView(
         dampingRatio = 0.6f,
         stiffness = 300f
     )
+    val heightSpec = spring<androidx.compose.ui.unit.Dp>(
+        // Height must never overshoot its measured content. Overshoot is
+        // especially visible on the compact battery card as empty black space.
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMedium
+    )
     val alphaSpec = tween<Float>(
         durationMillis = 280,
         easing = FastOutSlowInEasing
@@ -112,7 +118,7 @@ fun IslandOverlayView(
     val width by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandWidth") {
         if (it) expandedWidth else settings.width.dp
     }
-    val height by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandHeight") {
+    val height by transition.animateDp(transitionSpec = { heightSpec }, label = "islandHeight") {
         // FIX: No more 160.dp hardcoded fallback. expandedHeight is always non-null now.
         // It starts at collapsed height and gets updated to the real content height
         // within 1-2 frames. The spring animation smoothly follows.
@@ -336,11 +342,10 @@ fun IslandOverlayView(
                         onLaunchApp = onLaunchApp,
                         onCollapse = onToggleExpanded,
                         statusBarHeight = statusBarHeight.dp,
-                        onHeightMeasured = {
-                            // Never let asynchronously loaded empty-state content
-                            // remain trapped at the collapsed pill height.
-                            expandedHeight = it.coerceAtLeast(MIN_EXPANDED_HEIGHT_DP.dp)
-                        },
+                        // Each mode owns its natural height. The launcher already
+                        // supplies its own loading height and must not impose that
+                        // minimum on compact call or battery content.
+                        onHeightMeasured = { expandedHeight = it },
                         settings = settings
                     )
                 }
@@ -356,7 +361,6 @@ private const val COLLAPSE_ANIMATION_DELAY_MS = 500L
 private const val DRAG_MAX_OFFSET_DP = 100f
 private const val COLLAPSED_SCALE_MIN = 0.9f
 private const val COLLAPSED_SCALE_RANGE = 0.1f
-private const val MIN_EXPANDED_HEIGHT_DP = 112f
 
 // Visual specs
 private const val STACK_INDICATOR_GAP_DP = 3.5f
