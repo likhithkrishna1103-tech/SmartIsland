@@ -83,8 +83,6 @@ fun IslandOverlayView(
         .computeCurrentWindowMetrics(context)
     val windowWidthPx = windowMetrics.bounds.width()
     val screenCenterPx = windowWidthPx / 2f
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val xOffsetPx = with(density) { settings.xOffset.dp.toPx() }
     val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * EXPANDED_WIDTH_RATIO).dp
     val transition = updateTransition(targetState = expanded, label = "islandTransition")
 
@@ -125,6 +123,9 @@ fun IslandOverlayView(
     }
     val radius by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandRadius") {
         if (it) 34.dp else settings.cornerRadius.dp
+    }
+    val animatedXOffset by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandXOffset") {
+        if (it) 0.dp else settings.xOffset.dp
     }
 
     val collapsedAlpha by transition.animateFloat(
@@ -178,7 +179,7 @@ fun IslandOverlayView(
                     .height(height)
                     .graphicsLayer {
                         val currentWidth = size.width
-                        val desiredCenterX = screenCenterPx + xOffsetPx
+                        val desiredCenterX = screenCenterPx + animatedXOffset.toPx()
                         translationX = desiredCenterX - (currentWidth / 2f)
                         translationY = yOffset.toPx() + dragOffset
                         alpha = collapsedAlpha
@@ -222,7 +223,7 @@ fun IslandOverlayView(
                 .height(height)
                 .graphicsLayer {
                     val currentWidth = size.width
-                    val desiredCenterX = screenCenterPx + xOffsetPx
+                    val desiredCenterX = screenCenterPx + animatedXOffset.toPx()
                     translationX = desiredCenterX - (currentWidth / 2f)
                     translationY = yOffset.toPx() + dragOffset
                 }
