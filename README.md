@@ -5,6 +5,10 @@
 </p>
 
 <p align="center">
+  <strong>Current release: v3.0.0</strong>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Android-8%2B-3DDC84?logo=android&logoColor=white" alt="Android 8+" />
   <img src="https://img.shields.io/badge/Kotlin-JVM%2017-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin JVM 17" />
   <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose Material 3" />
@@ -61,10 +65,12 @@ The project is designed to be transparent, hackable, and privacy-conscious: noti
 | Calls and media | Detects incoming calls, music/media sessions, artwork, playback state, and progress. |
 | Battery charging | Displays charging percentage, pulsing charging icon, and remaining charge time estimates. |
 | Quick actions | Opens, dismisses, or launches supported notification content from the expanded island. |
-| Custom controls | Lets users adjust width, height, position, and corner radius. |
+| App shortcuts | Lets users select up to eight apps for quick access from the expanded island. |
+| Custom controls | Lets users adjust width, height, position, corner radius, and indicator colors. |
+| Theme support | Adapts the settings experience and overlay styling for light and dark themes. |
 | Local settings | Persists island preferences with AndroidX DataStore Preferences. |
 | Demo modes | Includes notification, call, music, and battery charging demo buttons for quick testing. |
-| Gesture Guide | Provides an interactive dashboard guide (`GesturesSection.kt`) with looping finger path animations and Try-It-Yourself gesture play sandboxes. |
+| Gesture guide | Demonstrates swipe actions with looping animations and an interactive practice area. |
 
 ## Architecture
 
