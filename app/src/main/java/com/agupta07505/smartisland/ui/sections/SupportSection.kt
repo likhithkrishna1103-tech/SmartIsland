@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.Feedback
 import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.People
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -92,6 +93,13 @@ fun SupportSection() {
                     runCatchingLogged("SupportSection", "Failed to open License link") {
                         context.startActivity(intent)
                     } ?: Toast.makeText(context, "Cannot open link", Toast.LENGTH_SHORT).show()
+                }
+            )
+            ClickableRowItem(
+                label = "Community (Coming soon)",
+                icon = Icons.Rounded.People,
+                onClick = {
+                    Toast.makeText(context, "Community is coming soon!", Toast.LENGTH_SHORT).show()
                 }
             )
         }
