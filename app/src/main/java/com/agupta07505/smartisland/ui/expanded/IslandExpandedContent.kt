@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -193,8 +194,13 @@ private fun EmptyExpanded(
     onLaunchApp: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val apps by produceState<List<LaunchableApp>>(
-        initialValue = emptyList(),
+    val selectedApps = remember(settings.shortcutPackages) {
+        AppShortcutProvider.selectedApps(context, settings.shortcutPackages)
+    }
+    val apps by produceState<List<LaunchableApp>?>(
+        // Pinned apps are resolved immediately, so they appear on the first frame.
+        // The background query can then append recent apps without a setup flash.
+        initialValue = selectedApps.takeIf { it.isNotEmpty() },
         settings.shortcutPackages,
         settings.showRecentApps
     ) {
@@ -210,17 +216,23 @@ private fun EmptyExpanded(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight(unbounded = true)
-            .padding(start = 18.dp, top = 20.dp, end = 18.dp, bottom = 16.dp),
+            .padding(start = 18.dp, top = 16.dp, end = 18.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Quick launch", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-        Text(
-            if (apps.isEmpty()) "Choose shortcuts in the Smart Island app"
-            else if (settings.showRecentApps) "Pinned and recently used apps" else "Your favorite apps",
-            color = Color(0xFFB7C0CA),
-            fontSize = 13.sp
-        )
-        if (apps.isEmpty()) {
+        val loadedApps = apps
+        val hasConfiguration = settings.shortcutPackages.isNotEmpty() || settings.showRecentApps
+
+        if (loadedApps == null) {
+            // Keep the configured launcher visually clean while PackageManager and
+            // UsageStats are queried. In particular, do not flash the setup state.
+            Spacer(Modifier.height(84.dp))
+        } else if (loadedApps.isEmpty() && !hasConfiguration) {
+            Text("Quick launch", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Choose shortcuts in the Smart Island app",
+                color = Color(0xFFB7C0CA),
+                fontSize = 13.sp
+            )
             Text(
                 "Open Smart Island settings",
                 color = Color(0xFF67E8F9),
@@ -230,12 +242,18 @@ private fun EmptyExpanded(
                     .padding(top = 16.dp)
                     .clickable { onLaunchApp(context.packageName) }
             )
+        } else if (loadedApps.isEmpty()) {
+            Text(
+                "Selected apps are unavailable. Update App shortcuts in Smart Island.",
+                color = Color(0xFFB7C0CA),
+                fontSize = 13.sp
+            )
         } else {
             Column(
-                modifier = Modifier.padding(top = 16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                apps.chunked(4).forEach { rowApps ->
+                loadedApps.chunked(4).forEach { rowApps ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly

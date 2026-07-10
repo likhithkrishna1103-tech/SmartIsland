@@ -18,6 +18,17 @@ data class LaunchableApp(
 )
 
 object AppShortcutProvider {
+    fun selectedApps(context: Context, packages: Set<String>): List<LaunchableApp> =
+        packages.mapNotNull { packageName ->
+            runCatching {
+                val info = context.packageManager.getApplicationInfo(packageName, 0)
+                LaunchableApp(
+                    packageName = packageName,
+                    label = context.packageManager.getApplicationLabel(info).toString()
+                )
+            }.getOrNull()
+        }
+
     fun installedApps(context: Context): List<LaunchableApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         return context.packageManager.queryIntentActivities(launcherIntent, 0)
