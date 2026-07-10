@@ -80,7 +80,13 @@ fun IslandExpandedContent(
     }
 
     val density = LocalDensity.current
-    var pageHeights by remember { mutableStateOf(emptyMap<Int, Dp>()) }
+    var pageHeights by remember { mutableStateOf(emptyMap<String, Dp>()) }
+
+    // Clean up stale keys not present in notifications
+    val activeKeys = remember(notifications) { notifications.map { it.key }.toSet() }
+    LaunchedEffect(activeKeys) {
+        pageHeights = pageHeights.filterKeys { it in activeKeys }
+    }
 
     val pagerState = rememberPagerState(
         initialPage = selectedIndex.coerceIn(0, notifications.lastIndex),
@@ -106,7 +112,8 @@ fun IslandExpandedContent(
         // Interpolate height between pages based on swipe progress
         val currentPage = pagerState.currentPage
         val offsetFraction = pagerState.currentPageOffsetFraction
-        val currentPageHeight = pageHeights[currentPage]
+        val currentNotification = notifications.getOrNull(currentPage)
+        val currentPageHeight = currentNotification?.let { pageHeights[it.key] }
         val targetHeight = if (currentPageHeight != null) {
             val nextPage = if (offsetFraction > 0f) {
                 (currentPage + 1).coerceAtMost(notifications.lastIndex)
@@ -115,7 +122,8 @@ fun IslandExpandedContent(
             } else {
                 currentPage
             }
-            val nextHeight = pageHeights[nextPage] ?: currentPageHeight
+            val nextNotification = notifications.getOrNull(nextPage)
+            val nextHeight = nextNotification?.let { pageHeights[it.key] } ?: currentPageHeight
             val fraction = kotlin.math.abs(offsetFraction)
             currentPageHeight + (nextHeight - currentPageHeight) * fraction
         } else {
@@ -150,8 +158,8 @@ fun IslandExpandedContent(
                             .wrapContentHeight()
                             .onSizeChanged { size ->
                                 val heightDp = with(density) { size.height.toDp() }
-                                if (pageHeights[page] != heightDp) {
-                                    pageHeights = pageHeights.toMutableMap().apply { put(page, heightDp) }
+                                if (pageHeights[notification.key] != heightDp) {
+                                    pageHeights = pageHeights.toMutableMap().apply { put(notification.key, heightDp) }
                                 }
                             }
                     ) {
