@@ -95,6 +95,8 @@ import com.agupta07505.smartisland.ui.sections.PermissionsSection
 import com.agupta07505.smartisland.ui.sections.PositionsSection
 import com.agupta07505.smartisland.ui.sections.SupportSection
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Gesture
+import com.agupta07505.smartisland.ui.sections.GesturesSection
 import kotlinx.coroutines.launch
 
 private enum class HomeSection {
@@ -102,6 +104,7 @@ private enum class HomeSection {
     AppShortcuts,
     Positions,
     Customizations,
+    Gestures,
     Support,
     About
 }
@@ -146,6 +149,8 @@ fun SmartIslandHomeScreen(
     val customizationsTint = if (isDark) Color(0xFF3B82F6) else Color(0xFF1D4ED8)
     val shortcutsBg = if (isDark) Color(0xFF164E63) else Color(0xFFCFFAFE)
     val shortcutsTint = if (isDark) Color(0xFF22D3EE) else Color(0xFF0891B2)
+    val gesturesBg = if (isDark) Color(0xFF311B92) else Color(0xFFEDE7F6)
+    val gesturesTint = if (isDark) Color(0xFFB39DDB) else Color(0xFF512DA8)
     var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
     var notificationGranted by remember { mutableStateOf(isNotificationListenerEnabled(context)) }
 
@@ -383,6 +388,18 @@ fun SmartIslandHomeScreen(
                 )
 
                 SectionRow(
+                    title = "Gesture guide",
+                    description = "Learn how to interact with the Smart Island",
+                    icon = Icons.Rounded.Gesture,
+                    iconBgColor = gesturesBg,
+                    iconTint = gesturesTint,
+                    onClick = {
+                        transitionDirection = 1
+                        activeSection = HomeSection.Gestures
+                    }
+                )
+
+                SectionRow(
                     title = stringResource(R.string.sec_support),
                     description = stringResource(R.string.sec_support_desc),
                     icon = Icons.Rounded.Feedback,
@@ -479,6 +496,17 @@ fun SmartIslandHomeScreen(
                         }
                     ) {
                         CustomizationsSection(settings = settings, repository = resolvedRepository)
+                    }
+                }
+                HomeSection.Gestures -> {
+                    SectionDetailScreen(
+                        title = "Gesture guide",
+                        onBack = {
+                            transitionDirection = -1
+                            activeSection = null
+                        }
+                    ) {
+                        GesturesSection()
                     }
                 }
                 HomeSection.Support -> {
