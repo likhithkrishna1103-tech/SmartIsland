@@ -79,6 +79,12 @@ fun IslandOverlayView(
 
     val context = LocalContext.current
     val displayMetrics = context.resources.displayMetrics
+    val windowMetrics = androidx.window.layout.WindowMetricsCalculator.getOrCreate()
+        .computeCurrentWindowMetrics(context)
+    val windowWidthPx = windowMetrics.bounds.width()
+    val screenCenterPx = windowWidthPx / 2f
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val xOffsetPx = with(density) { settings.xOffset.dp.toPx() }
     val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * EXPANDED_WIDTH_RATIO).dp
     val transition = updateTransition(targetState = expanded, label = "islandTransition")
 
@@ -162,7 +168,7 @@ fun IslandOverlayView(
                     currentOnToggle()
                 }
             },
-        contentAlignment = Alignment.TopCenter
+        contentAlignment = Alignment.TopStart
     ) {
         // Stack Indicator Brackets: concentric parentheses curves drawn behind the pill when notifications > 1
         if (notifications.size > 1 && collapsedAlpha > 0f) {
@@ -171,7 +177,9 @@ fun IslandOverlayView(
                     .width(width)
                     .height(height)
                     .graphicsLayer {
-                        translationX = settings.xOffset.dp.toPx()
+                        val currentWidth = size.width
+                        val desiredCenterX = screenCenterPx + xOffsetPx
+                        translationX = desiredCenterX - (currentWidth / 2f)
                         translationY = yOffset.toPx() + dragOffset
                         alpha = collapsedAlpha
                     }
@@ -213,7 +221,9 @@ fun IslandOverlayView(
                 .width(width)
                 .height(height)
                 .graphicsLayer {
-                    translationX = settings.xOffset.dp.toPx()
+                    val currentWidth = size.width
+                    val desiredCenterX = screenCenterPx + xOffsetPx
+                    translationX = desiredCenterX - (currentWidth / 2f)
                     translationY = yOffset.toPx() + dragOffset
                 }
                 .clip(RoundedCornerShape(radius))
