@@ -33,7 +33,7 @@ defaults:
 
 jobs:
   verify:
-    name: Lint and unit tests
+    name: Lint and debug build
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -51,21 +51,17 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      - name: Run lint and unit tests
-        run: ./gradlew --no-daemon --stacktrace lintDebug testDebugUnitTest
+      - name: Run lint, tests, and debug build
+        run: ./gradlew --no-daemon --stacktrace lintDebug testDebugUnitTest assembleDebug
 
       - name: Upload lint reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: lint-reports-${{ github.run_attempt }}
+          name: lint-reports
           path: app/build/reports/lint-results-*.html
           if-no-files-found: warn
           retention-days: 14
-
-      - name: Build debug APK
-        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' }}
-        run: ./gradlew --no-daemon --stacktrace assembleDebug
 
       - name: Upload debug APK
         if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' }}
@@ -188,11 +184,38 @@ jobs:
         run: |
           TAG="$VERSION_TAG"
           [[ "$GITHUB_REF" == refs/tags/* ]] && TAG="$GITHUB_REF_NAME"
+          ASSET="$APK_NAME#Smart Island $TAG - Signed Android APK"
+
+          RELEASE_INTRO=$(cat <<EOF
+          > **Smart Island $TAG** brings a lightweight, privacy-conscious Dynamic Island experience to Android with glanceable notifications, calls, media controls, battery status, and quick app shortcuts.
+
+          ## Download and install
+
+          Download the **signed Android APK** attached below. Smart Island supports **Android 8.0 and newer**.
+
+          > Android may ask you to allow installation from your browser or file manager. After installation, Smart Island guides you through the overlay and notification permissions it needs.
+
+          ## Highlights
+
+          - Animated floating island for notifications, calls, music, and charging
+          - Quick access to selected and recently used apps
+          - Customizable size, position, colors, and corner radius
+          - Local, on-device processing with no analytics or Internet permission
+          - Free and open-source Android app built with Kotlin and Jetpack Compose
+
+          ## Project links
+
+          [Full changelog](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md) · [Features and setup](https://github.com/$GITHUB_REPOSITORY#readme) · [Privacy](https://github.com/$GITHUB_REPOSITORY/blob/main/PRIVACY.md) · [Report a bug](https://github.com/$GITHUB_REPOSITORY/issues/new?template=bug_report.md) · [Request a feature](https://github.com/$GITHUB_REPOSITORY/issues/new?template=feature_request.md)
+
+          ---
+          EOF
+          )
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK_NAME" --clobber
+            gh release upload "$TAG" "$ASSET" --clobber
           else
-            gh release create "$TAG" "$APK_NAME" \
-              --title "Smart Island $TAG" \
+            gh release create "$TAG" "$ASSET" \
+              --title "Smart Island $TAG - Android Dynamic Island" \
+              --notes "$RELEASE_INTRO" \
               --generate-notes
           fi
