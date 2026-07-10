@@ -132,13 +132,16 @@ private fun SwipeUpGuide() {
             val islandAlpha: Float
             val fingerYOffset: Float
             val fingerAlpha: Float
+            
+            val dragStartPx = with(LocalDensity.current) { 60.dp.toPx() }
+            val dragEndPx = with(LocalDensity.current) { -60.dp.toPx() }
 
             when {
                 // Phase 1 (0.0 to 0.2): Rest on expanded state
                 progress < 0.2f -> {
                     islandHeight = 80.dp
                     islandAlpha = 1f
-                    fingerYOffset = 60f
+                    fingerYOffset = dragStartPx
                     fingerAlpha = 0f
                 }
                 // Phase 2 (0.2 to 0.3): Finger fades in
@@ -146,14 +149,14 @@ private fun SwipeUpGuide() {
                     val p = (progress - 0.2f) / 0.1f
                     islandHeight = 80.dp
                     islandAlpha = 1f
-                    fingerYOffset = 60f
+                    fingerYOffset = dragStartPx
                     fingerAlpha = p
                 }
                 // Phase 3 (0.3 to 0.6): Finger drags upward, island compresses slightly
                 progress < 0.6f -> {
                     val p = (progress - 0.3f) / 0.3f
-                    // Drag finger up from +60px to -60px
-                    fingerYOffset = 60f - (120f * p)
+                    // Drag finger up from start to end
+                    fingerYOffset = dragStartPx - ((dragStartPx - dragEndPx) * p)
                     fingerAlpha = 1f
                     // Compress island height from 80.dp to 70.dp
                     islandHeight = (80 - (10 * p)).dp
@@ -162,7 +165,7 @@ private fun SwipeUpGuide() {
                 // Phase 4 (0.6 to 0.8): Swipe released -> Island collapses and disappears, finger fades out
                 progress < 0.8f -> {
                     val p = (progress - 0.6f) / 0.2f
-                    fingerYOffset = -60f
+                    fingerYOffset = dragEndPx
                     fingerAlpha = 1f - p
                     // Island height shrinks to collapsed 34.dp
                     islandHeight = (70 - (36 * p)).dp
@@ -173,7 +176,7 @@ private fun SwipeUpGuide() {
                 else -> {
                     islandHeight = 80.dp
                     islandAlpha = 0f
-                    fingerYOffset = 60f
+                    fingerYOffset = dragStartPx
                     fingerAlpha = 0f
                 }
             }
@@ -252,7 +255,8 @@ private fun SwipeUpGuide() {
                                         dragOffset += dragAmount
                                     },
                                     onDragEnd = {
-                                        if (dragOffset < -60f) {
+                                        val thresholdPx = with(density) { -60.dp.toPx() }
+                                        if (dragOffset < thresholdPx) {
                                             // Swipe up threshold reached
                                             expanded = false
                                         }
@@ -354,11 +358,14 @@ private fun SwipeDownGuide() {
             val windowScale: Float
             val windowAlpha: Float
 
+            val dragStartPx = with(LocalDensity.current) { 30.dp.toPx() }
+            val dragEndPx = with(LocalDensity.current) { 130.dp.toPx() }
+
             when {
                 // Phase 1 (0.0 to 0.15): Rest on expanded state
                 progress < 0.15f -> {
                     islandHeight = 80.dp
-                    fingerYOffset = 30f
+                    fingerYOffset = dragStartPx
                     fingerAlpha = 0f
                     windowScale = 0.5f
                     windowAlpha = 0f
@@ -367,7 +374,7 @@ private fun SwipeDownGuide() {
                 progress < 0.25f -> {
                     val p = (progress - 0.15f) / 0.1f
                     islandHeight = 80.dp
-                    fingerYOffset = 30f
+                    fingerYOffset = dragStartPx
                     fingerAlpha = p
                     windowScale = 0.5f
                     windowAlpha = 0f
@@ -375,7 +382,7 @@ private fun SwipeDownGuide() {
                 // Phase 3 (0.25 to 0.55): Finger drags downward
                 progress < 0.55f -> {
                     val p = (progress - 0.25f) / 0.3f
-                    fingerYOffset = 30f + (100f * p)
+                    fingerYOffset = dragStartPx + ((dragEndPx - dragStartPx) * p)
                     fingerAlpha = 1f
                     islandHeight = (80 + (16 * p)).dp
                     windowScale = 0.5f
@@ -384,7 +391,7 @@ private fun SwipeDownGuide() {
                 // Phase 4 (0.55 to 0.85): Swipe released -> Island collapses, floating window scales up and fades in
                 progress < 0.85f -> {
                     val p = (progress - 0.55f) / 0.3f
-                    fingerYOffset = 130f
+                    fingerYOffset = dragEndPx
                     fingerAlpha = 1f - p
                     islandHeight = (96 - (62 * p)).dp
                     windowScale = 0.5f + (0.5f * p)
@@ -393,7 +400,7 @@ private fun SwipeDownGuide() {
                 // Phase 5 (0.85 to 1.0): Display floating window before reset
                 else -> {
                     islandHeight = 34.dp
-                    fingerYOffset = 130f
+                    fingerYOffset = dragEndPx
                     fingerAlpha = 0f
                     windowScale = 1.0f
                     windowAlpha = 1f
@@ -531,7 +538,8 @@ private fun SwipeDownGuide() {
                                         dragOffset += dragAmount
                                     },
                                     onDragEnd = {
-                                        if (dragOffset > 60f) {
+                                        val thresholdPx = with(density) { 60.dp.toPx() }
+                                        if (dragOffset > thresholdPx) {
                                             expanded = false
                                             windowOpen = true
                                         }
@@ -671,10 +679,14 @@ private fun SwipeHorizontalGuide() {
             val pageTranslationX: Float
             val isPageTwo: Boolean
 
+            val pageWidthPx = with(LocalDensity.current) { 196.dp.toPx() }
+            val fingerStartPx = with(LocalDensity.current) { 60.dp.toPx() }
+            val fingerEndPx = with(LocalDensity.current) { -60.dp.toPx() }
+
             when {
                 // Phase 1 (0.0 to 0.15): Rest on page 1
                 progress < 0.15f -> {
-                    fingerXOffset = 60f
+                    fingerXOffset = fingerStartPx
                     fingerAlpha = 0f
                     pageTranslationX = 0f
                     isPageTwo = false
@@ -682,7 +694,7 @@ private fun SwipeHorizontalGuide() {
                 // Phase 2 (0.15 to 0.25): Finger fades in
                 progress < 0.25f -> {
                     val p = (progress - 0.15f) / 0.1f
-                    fingerXOffset = 60f
+                    fingerXOffset = fingerStartPx
                     fingerAlpha = p
                     pageTranslationX = 0f
                     isPageTwo = false
@@ -690,46 +702,46 @@ private fun SwipeHorizontalGuide() {
                 // Phase 3 (0.25 to 0.45): Finger swipes left, dragging page content
                 progress < 0.45f -> {
                     val p = (progress - 0.25f) / 0.2f
-                    fingerXOffset = 60f - (120f * p)
+                    fingerXOffset = fingerStartPx - ((fingerStartPx - fingerEndPx) * p)
                     fingerAlpha = 1f
-                    pageTranslationX = -200f * p
+                    pageTranslationX = -pageWidthPx * p
                     isPageTwo = false
                 }
                 // Phase 4 (0.45 to 0.55): Finger fades out, Page 2 active
                 progress < 0.55f -> {
                     val p = (progress - 0.45f) / 0.1f
-                    fingerXOffset = -60f
+                    fingerXOffset = fingerEndPx
                     fingerAlpha = 1f - p
-                    pageTranslationX = -200f
+                    pageTranslationX = -pageWidthPx
                     isPageTwo = true
                 }
                 // Phase 5 (0.55 to 0.65): Finger appears on left
                 progress < 0.65f -> {
                     val p = (progress - 0.55f) / 0.1f
-                    fingerXOffset = -60f
+                    fingerXOffset = fingerEndPx
                     fingerAlpha = p
-                    pageTranslationX = -200f
+                    pageTranslationX = -pageWidthPx
                     isPageTwo = true
                 }
                 // Phase 6 (0.65 to 0.85): Finger swipes right, dragging page content back
                 progress < 0.85f -> {
                     val p = (progress - 0.65f) / 0.2f
-                    fingerXOffset = -60f + (120f * p)
+                    fingerXOffset = fingerEndPx + ((fingerStartPx - fingerEndPx) * p)
                     fingerAlpha = 1f
-                    pageTranslationX = -200f + (200f * p)
+                    pageTranslationX = -pageWidthPx + (pageWidthPx * p)
                     isPageTwo = true
                 }
                 // Phase 7 (0.85 to 0.95): Finger fades out
                 progress < 0.95f -> {
                     val p = (progress - 0.85f) / 0.1f
-                    fingerXOffset = 60f
+                    fingerXOffset = fingerStartPx
                     fingerAlpha = 1f - p
                     pageTranslationX = 0f
                     isPageTwo = false
                 }
                 // Phase 8 (0.95 to 1.0): Display page 1 at rest before reset
                 else -> {
-                    fingerXOffset = 60f
+                    fingerXOffset = fingerStartPx
                     fingerAlpha = 0f
                     pageTranslationX = 0f
                     isPageTwo = false
@@ -815,6 +827,7 @@ private fun SwipeHorizontalGuide() {
             var currentPage by remember { mutableStateOf(0) }
             var dragOffset by remember { mutableStateOf(0f) }
             val density = LocalDensity.current
+            val pageWidthPx = with(density) { 196.dp.toPx() }
 
             Box(
                 modifier = Modifier
@@ -840,9 +853,9 @@ private fun SwipeHorizontalGuide() {
                                     dragOffset += dragAmount
                                 },
                                 onDragEnd = {
-                                    if (dragOffset < -50f && currentPage == 0) {
+                                    if (dragOffset < -pageWidthPx / 4f && currentPage == 0) {
                                         currentPage = 1
-                                    } else if (dragOffset > 50f && currentPage == 1) {
+                                    } else if (dragOffset > pageWidthPx / 4f && currentPage == 1) {
                                         currentPage = 0
                                     }
                                     dragOffset = 0f
@@ -856,10 +869,9 @@ private fun SwipeHorizontalGuide() {
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                // Slide offset based on drag or current page
-                                val pageBaseX = if (currentPage == 0) 0f else -200f
-                                val progressOffset = dragOffset / density.density
-                                translationX = pageBaseX + progressOffset.coerceIn(-100f, 100f)
+                                val pageBaseX = if (currentPage == 0) 0f else -pageWidthPx
+                                val constrainedDrag = if (currentPage == 0) dragOffset.coerceAtMost(0f) else dragOffset.coerceAtLeast(0f)
+                                translationX = pageBaseX + constrainedDrag.coerceIn(-pageWidthPx, pageWidthPx)
                             }
                     ) {
                         Row(modifier = Modifier.width(440.dp)) {
