@@ -39,7 +39,6 @@ import com.agupta07505.smartisland.model.IslandNotification
 import com.agupta07505.smartisland.ui.IslandViewModel
 import com.agupta07505.smartisland.ui.OverlayIsland
 import com.agupta07505.smartisland.util.runCatchingLogged
-import androidx.window.layout.WindowMetricsCalculator
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -190,10 +189,6 @@ class SmartIslandOverlayService : LifecycleService() {
             }
             return
         }
-        // FIX: Use WindowMetricsCalculator for correct bounds on foldables and
-        // multi-window mode, instead of displayMetrics which reports full display.
-        val windowMetrics = WindowMetricsCalculator.getOrCreate()
-            .computeCurrentWindowMetrics(this)
         try {
             islandView = ComposeView(this).apply {
                 installOverlayViewTreeOwners()
@@ -240,7 +235,7 @@ class SmartIslandOverlayService : LifecycleService() {
                                                 val h = ((viewModel.settings.value.height + 16f) * density).toInt()
                                                 val xOffsetPx = (viewModel.settings.value.xOffset * density).toInt()
 
-                                                val screenWidth = windowMetrics.bounds.width()
+                                                val screenWidth = resources.displayMetrics.widthPixels
                                                 val left = (screenWidth - w) / 2 + xOffsetPx
                                                 val right = left + w
                                                 val top = 0
@@ -275,7 +270,6 @@ class SmartIslandOverlayService : LifecycleService() {
 
     private fun updateWindowLayoutParams(expanded: Boolean, settings: SmartIslandSettings) {
         val view = islandView ?: return
-        val screenWidth = currentWindowBounds().width()
         val density = resources.displayMetrics.density
         val h = if (expanded) {
             WindowManager.LayoutParams.MATCH_PARENT
@@ -283,7 +277,7 @@ class SmartIslandOverlayService : LifecycleService() {
             ((settings.height + 16f) * density).toInt()
         }
         val params = WindowManager.LayoutParams(
-            screenWidth,
+            WindowManager.LayoutParams.MATCH_PARENT,
             h,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -316,10 +310,9 @@ class SmartIslandOverlayService : LifecycleService() {
     }
 
     private fun collapsedParams(settings: SmartIslandSettings): WindowManager.LayoutParams {
-        val screenWidth = currentWindowBounds().width()
         val density = resources.displayMetrics.density
         return WindowManager.LayoutParams(
-            screenWidth,
+            WindowManager.LayoutParams.MATCH_PARENT,
             ((settings.height + 16f) * density).toInt(),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -410,13 +403,13 @@ class SmartIslandOverlayService : LifecycleService() {
                 return
             }
             runCatchingLogged(TAG, "Failed to set launch bounds") {
-                val bounds = currentWindowBounds()
-                val screenWidth = bounds.width()
-                val screenHeight = bounds.height()
+                val displayMetrics = resources.displayMetrics
+                val screenWidth = displayMetrics.widthPixels
+                val screenHeight = displayMetrics.heightPixels
                 val w = (screenWidth * 0.90f).toInt()
                 val h = (screenHeight * 0.65f).toInt()
-                val left = bounds.left + (screenWidth - w) / 2
-                val top = bounds.top + (screenHeight - h) / 2
+                val left = (screenWidth - w) / 2
+                val top = (screenHeight - h) / 2
                 options.setLaunchBounds(android.graphics.Rect(left, top, left + w, top + h))
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -445,11 +438,6 @@ class SmartIslandOverlayService : LifecycleService() {
         }
         viewModel.collapse()
     }
-
-    private fun currentWindowBounds(): android.graphics.Rect =
-        WindowMetricsCalculator.getOrCreate()
-            .computeCurrentWindowMetrics(this)
-            .bounds
 
     private fun Float.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
 

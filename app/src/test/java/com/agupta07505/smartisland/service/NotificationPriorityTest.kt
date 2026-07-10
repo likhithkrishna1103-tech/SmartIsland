@@ -122,17 +122,39 @@ class NotificationPriorityTest {
     }
 
     @Test
-    fun testToIslandModeWithMediaActionEdgeCases() {
+    fun testOngoingProgressNotificationIsNotIgnored() {
+        val sbn = mockk<StatusBarNotification>()
+        val notification = mockk<Notification>()
+        val pm = mockk<PackageManager>()
+        val appInfo = mockk<ApplicationInfo>()
+        val extras = mockk<android.os.Bundle>()
+
+        notification.category = Notification.CATEGORY_PROGRESS
+        notification.flags = Notification.FLAG_ONGOING_EVENT
+        notification.extras = extras
+        every { extras.getCharSequence(Notification.EXTRA_TITLE) } returns "Downloading"
+        every { extras.getCharSequence(Notification.EXTRA_TEXT) } returns "42%"
+        every { extras.getCharSequence(Notification.EXTRA_BIG_TEXT) } returns null
+        every { sbn.notification } returns notification
+        every { sbn.packageName } returns "com.example.downloader"
+        appInfo.flags = 0
+        every { pm.getApplicationInfo("com.example.downloader", 0) } returns appInfo
+
+        assertFalse(NotificationFilter.shouldSuppressFromIsland(sbn, pm))
+    }
+
+    @Test
+    fun testGenericMediaLabelsWithoutMediaSessionRemainNotifications() {
         val testLabels = listOf("PAUSE", "Next Track", "PLAY", "previous song")
         for (label in testLabels) {
             val notification = mockk<Notification>()
-            notification.category = null
+            notification.category = Notification.CATEGORY_MESSAGE
             val action = mockk<Notification.Action>()
             action.title = label
             notification.actions = arrayOf(action)
 
             val mode = notification.toIslandMode()
-            assertEquals(IslandMode.Music, mode)
+            assertEquals(IslandMode.Notification, mode)
         }
     }
 }

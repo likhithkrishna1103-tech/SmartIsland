@@ -79,10 +79,7 @@ fun IslandOverlayView(
 
     val context = LocalContext.current
     val displayMetrics = context.resources.displayMetrics
-    val windowMetrics = androidx.window.layout.WindowMetricsCalculator.getOrCreate()
-        .computeCurrentWindowMetrics(context)
-    val windowWidthPx = windowMetrics.bounds.width()
-    val screenCenterPx = windowWidthPx / 2f
+    val screenCenterPx = displayMetrics.widthPixels / 2f
     val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * EXPANDED_WIDTH_RATIO).dp
     val transition = updateTransition(targetState = expanded, label = "islandTransition")
 

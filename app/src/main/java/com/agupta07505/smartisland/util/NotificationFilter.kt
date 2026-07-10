@@ -47,7 +47,8 @@ object NotificationFilter {
         val isOngoing = (notification.flags and (Notification.FLAG_ONGOING_EVENT or Notification.FLAG_FOREGROUND_SERVICE)) != 0
         if (isOngoing) {
             val mode = notification.toIslandMode()
-            if (mode != IslandMode.IncomingCall && mode != IslandMode.Music) {
+            val isProgressNotification = notification.category == Notification.CATEGORY_PROGRESS
+            if (!isProgressNotification && mode != IslandMode.IncomingCall && mode != IslandMode.Music) {
                 return true
             }
         }
@@ -73,36 +74,34 @@ object NotificationFilter {
 }
 
 fun Notification.toIslandMode(): IslandMode {
-    val hasCallAction = actions?.any { action ->
-        val label = action.title?.toString()?.lowercase().orEmpty()
-        label.contains("answer") ||
-            label.contains("decline") ||
-            label.contains("reject") ||
-            label.contains("hang up") ||
-            label.contains("accept")
-    } == true
-
     val isCallStyle = extras?.getString(Notification.EXTRA_TEMPLATE) == "android.app.Notification\$CallStyle"
+    val actionLabels = actions.orEmpty().map { it.title?.toString()?.lowercase().orEmpty() }
+    val hasIncomingCallActionPair =
+        actionLabels.any { it.contains("answer") } &&
+            actionLabels.any {
+                it.contains("decline") ||
+                    it.contains("reject") ||
+                    it.contains("hang up")
+            }
+    val hasMediaSession = extras?.containsKey(Notification.EXTRA_MEDIA_SESSION) == true
+    val hasMediaAction = actionLabels.any {
+        it.contains("play") ||
+            it.contains("pause") ||
+            it.contains("next") ||
+            it.contains("previous")
+    }
 
     return when {
-        category == Notification.CATEGORY_CALL ||
-        category == Notification.CATEGORY_MISSED_CALL ||
-        isCallStyle ||
-        hasCallAction -> IslandMode.IncomingCall
-
-        category == Notification.CATEGORY_TRANSPORT ||
-        category == Notification.CATEGORY_PROGRESS -> IslandMode.Music
-
-        else -> {
-            val hasMediaAction = actions?.any { action ->
-                val label = action.title?.toString()?.lowercase().orEmpty()
-                label.contains("play") ||
-                    label.contains("pause") ||
-                    label.contains("next") ||
-                    label.contains("previous")
-            } == true
-            if (hasMediaAction) IslandMode.Music else IslandMode.Notification
+        // Missed calls are historical notifications, not active incoming calls.
+        category == Notification.CATEGORY_CALL || isCallStyle || hasIncomingCallActionPair -> {
+            IslandMode.IncomingCall
         }
+
+        // CATEGORY_PROGRESS is used by downloads, uploads, and other progress work.
+        // Only classify action-based media notifications when a media session exists.
+        category == Notification.CATEGORY_TRANSPORT ||
+            (hasMediaSession && hasMediaAction) -> IslandMode.Music
+
+        else -> IslandMode.Notification
     }
 }
-

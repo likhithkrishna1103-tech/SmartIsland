@@ -113,7 +113,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-service:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
-    implementation("androidx.window:window:1.3.0")
     implementation("com.google.dagger:hilt-android:2.60.1")
     kapt("com.google.dagger:hilt-compiler:2.60.1")
 
