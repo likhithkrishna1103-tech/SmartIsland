@@ -198,6 +198,7 @@ class SmartIslandOverlayService : LifecycleService() {
                         viewModel = this@SmartIslandOverlayService.viewModel,
                         statusBarHeight = statusBarHeight,
                         onOpenNotification = { notification -> openNotification(notification) },
+                        onLaunchApp = { packageName -> launchApp(packageName) },
                         onOpenFloatingWindow = { openCurrentNotificationInFloatingWindow() }
                     )
                 }
@@ -378,6 +379,19 @@ class SmartIslandOverlayService : LifecycleService() {
         }
         notificationRepository.removeNotification(notification.key)
         notificationRepository.sendCommand(SmartIslandCommand.CancelNotification(notification.key))
+        viewModel.collapse()
+    }
+
+    private fun launchApp(packageName: String) {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent == null) {
+            Toast.makeText(this, "App is no longer available", Toast.LENGTH_SHORT).show()
+            return
+        }
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatchingLogged(TAG, "Failed to launch shortcut app") {
+            startActivity(launchIntent)
+        }
         viewModel.collapse()
     }
 

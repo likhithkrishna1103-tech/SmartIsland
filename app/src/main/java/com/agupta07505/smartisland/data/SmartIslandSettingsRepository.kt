@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -29,6 +30,8 @@ class SmartIslandSettingsRepository(private val context: Context) {
         val BatteryColor = longPreferencesKey("battery_color")
         val NotificationDotColor = longPreferencesKey("notification_dot_color")
         val MusicVisualizerColor = longPreferencesKey("music_visualizer_color")
+        val ShortcutPackages = stringSetPreferencesKey("shortcut_packages")
+        val ShowRecentApps = booleanPreferencesKey("show_recent_apps")
     }
 
     val settings: Flow<SmartIslandSettings> = context.smartIslandDataStore.data.map { prefs ->
@@ -41,7 +44,9 @@ class SmartIslandSettingsRepository(private val context: Context) {
             cornerRadius = prefs[Keys.CornerRadius] ?: SmartIslandSettings.Default.cornerRadius,
             batteryColor = prefs[Keys.BatteryColor] ?: SmartIslandSettings.Default.batteryColor,
             notificationDotColor = prefs[Keys.NotificationDotColor] ?: SmartIslandSettings.Default.notificationDotColor,
-            musicVisualizerColor = prefs[Keys.MusicVisualizerColor] ?: SmartIslandSettings.Default.musicVisualizerColor
+            musicVisualizerColor = prefs[Keys.MusicVisualizerColor] ?: SmartIslandSettings.Default.musicVisualizerColor,
+            shortcutPackages = prefs[Keys.ShortcutPackages] ?: SmartIslandSettings.Default.shortcutPackages,
+            showRecentApps = prefs[Keys.ShowRecentApps] ?: SmartIslandSettings.Default.showRecentApps
         )
     }
 
@@ -54,6 +59,12 @@ class SmartIslandSettingsRepository(private val context: Context) {
     suspend fun setBatteryColor(value: Long) = context.smartIslandDataStore.edit { it[Keys.BatteryColor] = value }
     suspend fun setNotificationDotColor(value: Long) = context.smartIslandDataStore.edit { it[Keys.NotificationDotColor] = value }
     suspend fun setMusicVisualizerColor(value: Long) = context.smartIslandDataStore.edit { it[Keys.MusicVisualizerColor] = value }
+    suspend fun setShortcutPackages(value: Set<String>) = context.smartIslandDataStore.edit {
+        it[Keys.ShortcutPackages] = value
+    }
+    suspend fun setShowRecentApps(value: Boolean) = context.smartIslandDataStore.edit {
+        it[Keys.ShowRecentApps] = value
+    }
 
     suspend fun resetPosition() = context.smartIslandDataStore.edit {
         it[Keys.Width] = SmartIslandSettings.Default.width

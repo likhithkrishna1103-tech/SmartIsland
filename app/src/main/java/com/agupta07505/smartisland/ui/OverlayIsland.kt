@@ -18,6 +18,7 @@ fun OverlayIsland(
     viewModel: IslandViewModel,
     statusBarHeight: Float,
     onOpenNotification: (IslandNotification) -> Unit,
+    onLaunchApp: (String) -> Unit,
     onOpenFloatingWindow: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -33,6 +34,7 @@ fun OverlayIsland(
         selectedIndex = selectedIndex,
         onPageSelected = { index -> viewModel.setSelectedNotificationIndex(index) },
         onOpenNotification = onOpenNotification,
+        onLaunchApp = onLaunchApp,
         onToggleExpanded = { viewModel.toggleExpanded() },
         onDismissNotification = { viewModel.dismissCurrentNotification() },
         onOpenFloatingWindow = onOpenFloatingWindow,

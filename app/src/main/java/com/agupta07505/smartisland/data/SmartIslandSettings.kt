@@ -16,7 +16,9 @@ data class SmartIslandSettings(
     val cornerRadius: Float = 22f,
     val batteryColor: Long = 0xFF10B981L,
     val notificationDotColor: Long = 0xFF2563EBL,
-    val musicVisualizerColor: Long = 0xFFFF6B9AL
+    val musicVisualizerColor: Long = 0xFFFF6B9AL,
+    val shortcutPackages: Set<String> = emptySet(),
+    val showRecentApps: Boolean = false
 ) {
     companion object {
         val Default = SmartIslandSettings()

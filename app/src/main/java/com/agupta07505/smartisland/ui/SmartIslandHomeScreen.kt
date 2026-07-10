@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Feedback
 import androidx.compose.material.icons.rounded.Info
@@ -87,6 +88,7 @@ import com.agupta07505.smartisland.di.SmartIslandRepositories
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.service.SmartIslandOverlayService
 import com.agupta07505.smartisland.ui.sections.AboutSection
+import com.agupta07505.smartisland.ui.sections.AppShortcutsSection
 import com.agupta07505.smartisland.ui.sections.CustomizationsSection
 import com.agupta07505.smartisland.ui.sections.HeaderSection
 import com.agupta07505.smartisland.ui.sections.PermissionsSection
@@ -97,6 +99,7 @@ import kotlinx.coroutines.launch
 
 private enum class HomeSection {
     Permissions,
+    AppShortcuts,
     Positions,
     Customizations,
     Support,
@@ -141,6 +144,8 @@ fun SmartIslandHomeScreen(
     val aboutTint = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
     val customizationsBg = if (isDark) Color(0xFF1E3A8A) else Color(0xFFDBEAFE)
     val customizationsTint = if (isDark) Color(0xFF3B82F6) else Color(0xFF1D4ED8)
+    val shortcutsBg = if (isDark) Color(0xFF164E63) else Color(0xFFCFFAFE)
+    val shortcutsTint = if (isDark) Color(0xFF22D3EE) else Color(0xFF0891B2)
     var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
     var notificationGranted by remember { mutableStateOf(isNotificationListenerEnabled(context)) }
 
@@ -336,6 +341,24 @@ fun SmartIslandHomeScreen(
                 )
 
                 SectionRow(
+                    title = "App shortcuts",
+                    description = "Choose apps available whenever the expanded island is empty",
+                    icon = Icons.Rounded.Apps,
+                    iconBgColor = shortcutsBg,
+                    iconTint = shortcutsTint,
+                    statusText = when {
+                        settings.shortcutPackages.isNotEmpty() -> "${settings.shortcutPackages.size} selected"
+                        settings.showRecentApps -> "Recent apps enabled"
+                        else -> "Set up"
+                    },
+                    statusColor = shortcutsTint,
+                    onClick = {
+                        transitionDirection = 1
+                        activeSection = HomeSection.AppShortcuts
+                    }
+                )
+
+                SectionRow(
                     title = stringResource(R.string.sec_positions),
                     description = stringResource(R.string.sec_positions_desc),
                     icon = Icons.Rounded.Refresh,
@@ -434,6 +457,17 @@ fun SmartIslandHomeScreen(
                         }
                     ) {
                         PositionsSection(settings = settings, repository = resolvedRepository)
+                    }
+                }
+                HomeSection.AppShortcuts -> {
+                    SectionDetailScreen(
+                        title = "App shortcuts",
+                        onBack = {
+                            transitionDirection = -1
+                            activeSection = null
+                        }
+                    ) {
+                        AppShortcutsSection(settings = settings, repository = resolvedRepository)
                     }
                 }
                 HomeSection.Customizations -> {

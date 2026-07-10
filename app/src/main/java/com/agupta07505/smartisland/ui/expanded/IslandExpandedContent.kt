@@ -15,10 +15,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Text
+import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -37,6 +43,12 @@ import androidx.compose.ui.unit.sp
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
 import com.agupta07505.smartisland.data.SmartIslandSettings
+import com.agupta07505.smartisland.data.AppShortcutProvider
+import com.agupta07505.smartisland.data.LaunchableApp
+import androidx.compose.runtime.produceState
+import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun IslandExpandedContent(
@@ -44,6 +56,7 @@ fun IslandExpandedContent(
     selectedIndex: Int,
     onPageSelected: (Int) -> Unit,
     onOpenNotification: (IslandNotification) -> Unit,
+    onLaunchApp: (String) -> Unit,
     onCollapse: () -> Unit,
     statusBarHeight: Dp,
     onHeightMeasured: (Dp) -> Unit,
@@ -51,12 +64,14 @@ fun IslandExpandedContent(
     modifier: Modifier = Modifier
 ) {
     if (notifications.isEmpty()) {
+        val density = LocalDensity.current
         Box(
             modifier = modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
+                .onSizeChanged { onHeightMeasured(with(density) { it.height.toDp() }) }
         ) {
-            EmptyExpanded()
+            EmptyExpanded(settings = settings, onLaunchApp = onLaunchApp)
         }
         return
     }
@@ -158,7 +173,7 @@ fun IslandExpandedContent(
                                 bottomPadding = bottomPadding,
                                 settings = settings
                             )
-                            IslandMode.Empty -> EmptyExpanded()
+                            IslandMode.Empty -> EmptyExpanded(settings = settings, onLaunchApp = onLaunchApp)
                         }
                     }
                 }
@@ -168,7 +183,24 @@ fun IslandExpandedContent(
 }
 
 @Composable
-private fun EmptyExpanded() {
+private fun EmptyExpanded(
+    settings: SmartIslandSettings,
+    onLaunchApp: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val apps by produceState<List<LaunchableApp>>(
+        initialValue = emptyList(),
+        settings.shortcutPackages,
+        settings.showRecentApps
+    ) {
+        value = withContext(Dispatchers.IO) {
+            AppShortcutProvider.shortcuts(
+                context = context,
+                selectedPackages = settings.shortcutPackages,
+                includeRecent = settings.showRecentApps
+            )
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -176,7 +208,72 @@ private fun EmptyExpanded() {
             .padding(start = 18.dp, top = 20.dp, end = 18.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Smart Island", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-        Text("Ready for notifications", color = Color(0xFFB7C0CA), fontSize = 13.sp)
+        Text("Quick launch", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            if (apps.isEmpty()) "Choose shortcuts in the Smart Island app"
+            else if (settings.showRecentApps) "Pinned and recently used apps" else "Your favorite apps",
+            color = Color(0xFFB7C0CA),
+            fontSize = 13.sp
+        )
+        if (apps.isEmpty()) {
+            Text(
+                "Open Smart Island settings",
+                color = Color(0xFF67E8F9),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .clickable { onLaunchApp(context.packageName) }
+            )
+        } else {
+            Column(
+                modifier = Modifier.padding(top = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                apps.chunked(4).forEach { rowApps ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        rowApps.forEach { app ->
+                            ShortcutApp(app = app, onClick = { onLaunchApp(app.packageName) })
+                        }
+                        repeat(4 - rowApps.size) { Box(Modifier.size(width = 64.dp, height = 1.dp)) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShortcutApp(app: LaunchableApp, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val icon = remember(app.packageName) {
+        runCatching {
+            context.packageManager.getApplicationIcon(app.packageName)
+                .toBitmap(width = 96, height = 96)
+                .asImageBitmap()
+        }.getOrNull()
+    }
+    Column(
+        modifier = Modifier
+            .size(width = 64.dp, height = 76.dp)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (icon != null) {
+            Image(
+                bitmap = icon,
+                contentDescription = app.label,
+                modifier = Modifier.size(44.dp)
+            )
+        }
+        Text(
+            text = app.label,
+            color = Color.White,
+            fontSize = 10.sp,
+            maxLines = 1
+        )
     }
 }
