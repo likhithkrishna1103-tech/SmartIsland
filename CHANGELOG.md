@@ -4,6 +4,32 @@ All notable changes to Smart Island should be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project uses the GNU General Public License v3.0.
 
+## [3.0.0] - 2026-07-10
+
+### Added
+
+- **Interactive Gesture Guide**: Added a dedicated "Gesture guide" option to the home screen settings dashboard routing to an interactive tabbed guide (`GesturesSection.kt`).
+- **Looping Gesture Animations**: Built looping animations with pulsing finger paths demonstrating Swipe Up (dismiss), Swipe Down (launch in popup/floating window), and Swipe Left/Right (horizontal paging) on a mock status bar island.
+- **Try-It-Yourself Playground**: Added interactive gesture detectors utilizing drag thresholds to let users horizontally/vertically swipe the mock island and trigger responses live in a sandbox.
+- **App Shortcuts**: Added a shortcut picker for selecting up to eight installed apps and opening them directly from the expanded island, with recent apps used as a fallback.
+- **Expanded Color Customization**: Added preset palettes and a custom RGB picker for the notification dot, battery indicator, and music visualizer.
+- **Dark Theme Support**: Added theme-aware settings and overlay styling for improved readability in dark mode.
+
+### Changed
+
+- **Key-Based Height Synchronization**: Refactored the dynamic height tracking (`pageHeights`) in the expanded pager to key by unique notification ID instead of page index, permanently preventing height-jumping artifacts when notifications update or switch categories.
+- **Density-Independent Gesture Limits**: Adjusted the touch offsets and swipe trigger limits to be calculated in DP and translated dynamically to pixels using `LocalDensity`, correcting the horizontal pagination guide metrics and vertical drag thresholds on high and low-DPI devices.
+- **Overlay Lifecycle**: Improved service, Compose view-tree, and background lifecycle handling to keep the island stable during recomposition, theme changes, and service restarts.
+- **Release Automation**: Refined Android CI artifact naming and added structured GitHub release notes.
+
+### Fixed
+
+- **Expanded Content Sizing**: Fixed shifting, overshooting, and incorrect minimum-height behavior while paging between notifications with different content heights.
+- **Swipe-Down Gesture**: Fixed unreliable drag-down recognition when launching an app in a floating window.
+- **RGB Picker**: Fixed the custom color picker's RGB slider rendering and selection behavior.
+- **Unexpected App Closure**: Fixed multiple lifecycle and animation paths that could force-close the app or overlay.
+- **Notification Filtering**: Improved filtering of system and ongoing notifications after removing the unused AndroidX Window dependency.
+
 ## [2.2.0] - 2026-07-07
 
 ### Added

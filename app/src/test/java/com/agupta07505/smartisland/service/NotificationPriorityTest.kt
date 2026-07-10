@@ -11,107 +11,153 @@ import android.app.Notification
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.service.notification.StatusBarNotification
+import com.agupta07505.smartisland.model.IslandMode
+import com.agupta07505.smartisland.util.NotificationFilter
+import com.agupta07505.smartisland.util.toIslandMode
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.spyk
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import com.agupta07505.smartisland.model.IslandMode
 
 class NotificationPriorityTest {
 
-    @Test
-    fun testShouldIgnoreForSmartIslandLowPriority() {
-        val service = spyk<SmartIslandNotificationListenerService>()
-        val sbn = mockk<StatusBarNotification>()
-        val notification = mockk<Notification>()
-        every { sbn.notification } returns notification
-        
-        // Mock isHighPriorityNotification helper to return false
-        every { service.isHighPriorityNotification(sbn, notification) } returns false
+    @org.junit.Before
+    fun setUp() {
+        io.mockk.mockkStatic(android.util.Log::class)
+        every { android.util.Log.e(any(), any(), any()) } returns 0
+    }
 
-        // Low priority notification should NOT be ignored (it returns false early)
-        assertFalse(service.shouldIgnoreForSmartIsland(sbn))
+    @org.junit.After
+    fun tearDown() {
+        io.mockk.unmockkStatic(android.util.Log::class)
     }
 
     @Test
     fun testShouldIgnoreForSmartIslandSystemCategory() {
-        val service = spyk<SmartIslandNotificationListenerService>()
         val sbn = mockk<StatusBarNotification>()
         val notification = mockk<Notification>()
+        val pm = mockk<PackageManager>()
+        
         notification.category = Notification.CATEGORY_SYSTEM
         every { sbn.notification } returns notification
         every { sbn.packageName } returns "com.example.app"
 
-        // Mock isHighPriorityNotification helper to return true
-        every { service.isHighPriorityNotification(sbn, notification) } returns true
-
-        // Notification with high priority and system category should be ignored
-        assertTrue(service.shouldIgnoreForSmartIsland(sbn))
+        assertTrue(NotificationFilter.shouldSuppressFromIsland(sbn, pm))
     }
 
     @Test
     fun testShouldIgnoreForSmartIslandSystemPackage() {
-        val service = spyk<SmartIslandNotificationListenerService>()
         val sbn = mockk<StatusBarNotification>()
         val notification = mockk<Notification>()
+        val pm = mockk<PackageManager>()
+        
         notification.category = Notification.CATEGORY_MESSAGE
         every { sbn.notification } returns notification
-        every { sbn.packageName } returns "com.android.systemui" // in SYSTEM_LEVEL_PACKAGES
+        every { sbn.packageName } returns "com.android.systemui"
 
-        // Mock isHighPriorityNotification helper to return true
-        every { service.isHighPriorityNotification(sbn, notification) } returns true
-
-        // Notification with high priority and system level package name should be ignored
-        assertTrue(service.shouldIgnoreForSmartIsland(sbn))
+        assertTrue(NotificationFilter.shouldSuppressFromIsland(sbn, pm))
     }
 
     @Test
     fun testShouldIgnoreForSmartIslandSystemFlagPackage() {
-        val service = spyk<SmartIslandNotificationListenerService>()
-        val sbn = mockk<StatusBarNotification>()
-        val notification = mockk<Notification>()
-        notification.category = Notification.CATEGORY_MESSAGE
-        every { sbn.notification } returns notification
-        every { sbn.packageName } returns "com.android.settings" // also in SYSTEM_LEVEL_PACKAGES
-
-        // Mock isHighPriorityNotification helper to return true
-        every { service.isHighPriorityNotification(sbn, notification) } returns true
-
-        assertTrue(service.shouldIgnoreForSmartIsland(sbn))
-    }
-
-    @Test
-    fun testHighPriorityNonSystemIsNotIgnored() {
-        val service = spyk<SmartIslandNotificationListenerService>()
         val sbn = mockk<StatusBarNotification>()
         val notification = mockk<Notification>()
         val pm = mockk<PackageManager>()
-        every { service.packageManager } returns pm
-        every { pm.getApplicationInfo(any<String>(), any<Int>()) } throws PackageManager.NameNotFoundException()
-
+        val appInfo = mockk<ApplicationInfo>()
+        
         notification.category = Notification.CATEGORY_MESSAGE
         every { sbn.notification } returns notification
-        every { sbn.packageName } returns "com.example.chat"   // NOT a system package
-        every { service.isHighPriorityNotification(sbn, notification) } returns true
+        every { sbn.packageName } returns "com.android.customsettings"
+        
+        appInfo.flags = ApplicationInfo.FLAG_SYSTEM
+        every { pm.getApplicationInfo("com.android.customsettings", 0) } returns appInfo
 
-        // High priority but ordinary app + ordinary category => keep it (don't ignore).
-        assertFalse(service.shouldIgnoreForSmartIsland(sbn))
+        assertTrue(NotificationFilter.shouldSuppressFromIsland(sbn, pm))
     }
 
     @Test
-    fun testToIslandModeWithMediaActionEdgeCases() {
+    fun testNonSystemIsNotIgnored() {
+        val sbn = mockk<StatusBarNotification>()
+        val notification = mockk<Notification>()
+        val pm = mockk<PackageManager>()
+        val appInfo = mockk<ApplicationInfo>()
+        
+        notification.category = Notification.CATEGORY_MESSAGE
+        notification.flags = 0
+        val extras = mockk<android.os.Bundle>()
+        every { extras.getCharSequence(Notification.EXTRA_TITLE) } returns "Title"
+        every { extras.getCharSequence(Notification.EXTRA_TEXT) } returns "Text"
+        every { extras.getCharSequence(Notification.EXTRA_BIG_TEXT) } returns null
+        notification.extras = extras
+        every { sbn.notification } returns notification
+        every { sbn.packageName } returns "com.example.chat"
+        
+        appInfo.flags = 0
+        every { pm.getApplicationInfo("com.example.chat", 0) } returns appInfo
+
+        assertFalse(NotificationFilter.shouldSuppressFromIsland(sbn, pm))
+    }
+
+    @Test
+    fun testNonSystemPackageInfoFailureIsNotIgnored() {
+        val sbn = mockk<StatusBarNotification>()
+        val notification = mockk<Notification>()
+        val pm = mockk<PackageManager>()
+        
+        notification.category = Notification.CATEGORY_MESSAGE
+        notification.flags = 0
+        val extras = mockk<android.os.Bundle>()
+        every { extras.getCharSequence(Notification.EXTRA_TITLE) } returns "Title"
+        every { extras.getCharSequence(Notification.EXTRA_TEXT) } returns "Text"
+        every { extras.getCharSequence(Notification.EXTRA_BIG_TEXT) } returns null
+        notification.extras = extras
+        every { sbn.notification } returns notification
+        every { sbn.packageName } returns "com.example.chat"
+        
+        every { pm.getApplicationInfo("com.example.chat", 0) } throws PackageManager.NameNotFoundException()
+
+        assertFalse(NotificationFilter.shouldSuppressFromIsland(sbn, pm))
+    }
+
+    @Test
+    fun testOngoingProgressNotificationIsNotIgnored() {
+        val sbn = mockk<StatusBarNotification>()
+        val notification = mockk<Notification>()
+        val pm = mockk<PackageManager>()
+        val appInfo = mockk<ApplicationInfo>()
+        val extras = mockk<android.os.Bundle>()
+
+        notification.category = Notification.CATEGORY_PROGRESS
+        notification.flags = Notification.FLAG_ONGOING_EVENT
+        notification.extras = extras
+        every { extras.getCharSequence(Notification.EXTRA_TITLE) } returns "Downloading"
+        every { extras.getCharSequence(Notification.EXTRA_TEXT) } returns "42%"
+        every { extras.getCharSequence(Notification.EXTRA_BIG_TEXT) } returns null
+        every { extras.getString(Notification.EXTRA_TEMPLATE) } returns null
+        every { extras.containsKey(Notification.EXTRA_MEDIA_SESSION) } returns false
+        notification.actions = null
+        every { sbn.notification } returns notification
+        every { sbn.packageName } returns "com.example.downloader"
+        appInfo.flags = 0
+        every { pm.getApplicationInfo("com.example.downloader", 0) } returns appInfo
+
+        assertFalse(NotificationFilter.shouldSuppressFromIsland(sbn, pm))
+    }
+
+    @Test
+    fun testGenericMediaLabelsWithoutMediaSessionRemainNotifications() {
         val testLabels = listOf("PAUSE", "Next Track", "PLAY", "previous song")
         for (label in testLabels) {
             val notification = mockk<Notification>()
-            notification.category = null
+            notification.category = Notification.CATEGORY_MESSAGE
             val action = mockk<Notification.Action>()
             action.title = label
             notification.actions = arrayOf(action)
 
             val mode = notification.toIslandMode()
-            org.junit.Assert.assertEquals(IslandMode.Music, mode)
+            assertEquals(IslandMode.Notification, mode)
         }
     }
 }

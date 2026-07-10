@@ -13,6 +13,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Feedback
 import androidx.compose.material.icons.rounded.Info
@@ -68,7 +70,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -79,37 +81,76 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.agupta07505.smartisland.R
-import com.agupta07505.smartisland.SmartIslandApp
+import com.agupta07505.smartisland.data.INotificationRepository
 import com.agupta07505.smartisland.data.SmartIslandSettings
+import com.agupta07505.smartisland.data.SmartIslandSettingsRepository
+import com.agupta07505.smartisland.di.SmartIslandRepositories
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.service.SmartIslandOverlayService
 import com.agupta07505.smartisland.ui.sections.AboutSection
+import com.agupta07505.smartisland.ui.sections.AppShortcutsSection
+import com.agupta07505.smartisland.ui.sections.CustomizationsSection
 import com.agupta07505.smartisland.ui.sections.HeaderSection
 import com.agupta07505.smartisland.ui.sections.PermissionsSection
 import com.agupta07505.smartisland.ui.sections.PositionsSection
 import com.agupta07505.smartisland.ui.sections.SupportSection
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Gesture
+import com.agupta07505.smartisland.ui.sections.GesturesSection
 import kotlinx.coroutines.launch
 
 private enum class HomeSection {
     Permissions,
+    AppShortcuts,
     Positions,
+    Customizations,
+    Gestures,
     Support,
     About
 }
 
 @Composable
-fun SmartIslandHomeScreen() {
+fun SmartIslandHomeScreen(
+    repository: SmartIslandSettingsRepository? = null,
+    notificationRepository: INotificationRepository? = null
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    
-    val app = context.applicationContext as? SmartIslandApp
-    val repository = remember(app, context) {
-        app?.settingsRepository ?: com.agupta07505.smartisland.data.SmartIslandSettingsRepository(context.applicationContext)
+
+    val resolvedRepository = remember(repository, context) {
+        repository ?: runCatching {
+            SmartIslandRepositories.settingsRepository(context)
+        }.getOrElse {
+            SmartIslandSettingsRepository(context.applicationContext)
+        }
     }
-    val notificationRepository = remember(app) { app?.notificationRepository }
+    val resolvedNotificationRepository = remember(notificationRepository, context) {
+        notificationRepository ?: runCatching {
+            SmartIslandRepositories.notificationRepository(context)
+        }.getOrNull()
+    }
     
-    val settings by repository.settings.collectAsStateWithLifecycle(initialValue = SmartIslandSettings.Default)
+    val settings by resolvedRepository.settings.collectAsStateWithLifecycle(initialValue = SmartIslandSettings.Default)
     val scope = rememberCoroutineScope()
+
+    val isDark = isSystemInDarkTheme()
+    val permissionsBg = if (isDark) Color(0xFF1E1B4B) else Color(0xFFE0E7FF)
+    val permissionsTint = if (isDark) Color(0xFF818CF8) else Color(0xFF4F46E5)
+    
+    val positionsBg = if (isDark) Color(0xFF064E3B) else Color(0xFFD1FAE5)
+    val positionsTint = if (isDark) Color(0xFF34D399) else Color(0xFF059669)
+    
+    val supportBg = if (isDark) Color(0xFF78350F) else Color(0xFFFEF3C7)
+    val supportTint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+    
+    val aboutBg = if (isDark) Color(0xFF581C87) else Color(0xFFF3E8FF)
+    val aboutTint = if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+    val customizationsBg = if (isDark) Color(0xFF1E3A8A) else Color(0xFFDBEAFE)
+    val customizationsTint = if (isDark) Color(0xFF3B82F6) else Color(0xFF1D4ED8)
+    val shortcutsBg = if (isDark) Color(0xFF164E63) else Color(0xFFCFFAFE)
+    val shortcutsTint = if (isDark) Color(0xFF22D3EE) else Color(0xFF0891B2)
+    val gesturesBg = if (isDark) Color(0xFF311B92) else Color(0xFFEDE7F6)
+    val gesturesTint = if (isDark) Color(0xFFB39DDB) else Color(0xFF512DA8)
     var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
     var notificationGranted by remember { mutableStateOf(isNotificationListenerEnabled(context)) }
 
@@ -126,9 +167,26 @@ fun SmartIslandHomeScreen() {
 
     LaunchedEffect(settings.enabled, overlayGranted) {
         if (settings.enabled && overlayGranted) {
-            ContextCompat.startForegroundService(context, Intent(context, SmartIslandOverlayService::class.java))
+            // CRASH FIX: startForegroundService can throw
+            // ForegroundServiceStartNotAllowedException on Android 12+
+            try {
+                ContextCompat.startForegroundService(context, Intent(context, SmartIslandOverlayService::class.java))
+            } catch (e: Exception) {
+                android.util.Log.e("SmartIslandHome", "Failed to start overlay service", e)
+                // Disable setting to prevent crash loop
+                try {
+                    resolvedRepository.setEnabled(false)
+                } catch (_: Exception) {}
+                android.widget.Toast.makeText(
+                    context,
+                    "Failed to start Smart Island: ${e.message}",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
         } else {
-            context.stopService(Intent(context, SmartIslandOverlayService::class.java))
+            try {
+                context.stopService(Intent(context, SmartIslandOverlayService::class.java))
+            } catch (_: Exception) {}
         }
     }
 
@@ -188,14 +246,14 @@ fun SmartIslandHomeScreen() {
                             Text(
                                 text = if (overlayGranted) stringResource(R.string.overlay_ready) else stringResource(R.string.grant_overlay),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF667085)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Switch(
                             checked = settings.enabled,
                             enabled = overlayGranted,
                             onCheckedChange = { enabled ->
-                                scope.launch { repository.setEnabled(enabled) }
+                                scope.launch { resolvedRepository.setEnabled(enabled) }
                             }
                         )
                     }
@@ -211,7 +269,7 @@ fun SmartIslandHomeScreen() {
                         Text(
                             text = stringResource(R.string.quick_test_controls),
                             style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFF667085),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(bottom = 10.dp)
                         )
@@ -224,7 +282,7 @@ fun SmartIslandHomeScreen() {
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 ElevatedButton(
-                                    onClick = { notificationRepository?.showDemo(IslandMode.Notification) },
+                                    onClick = { resolvedNotificationRepository?.showDemo(IslandMode.Notification) },
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(Icons.Rounded.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -232,7 +290,7 @@ fun SmartIslandHomeScreen() {
                                     Text(stringResource(R.string.btn_notify), fontSize = 11.sp)
                                 }
                                 ElevatedButton(
-                                    onClick = { notificationRepository?.showDemo(IslandMode.IncomingCall) },
+                                    onClick = { resolvedNotificationRepository?.showDemo(IslandMode.IncomingCall) },
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -245,7 +303,7 @@ fun SmartIslandHomeScreen() {
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 ElevatedButton(
-                                    onClick = { notificationRepository?.showDemo(IslandMode.Music) },
+                                    onClick = { resolvedNotificationRepository?.showDemo(IslandMode.Music) },
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -253,7 +311,7 @@ fun SmartIslandHomeScreen() {
                                     Text(stringResource(R.string.btn_music), fontSize = 11.sp)
                                 }
                                 ElevatedButton(
-                                    onClick = { notificationRepository?.showDemo(IslandMode.Battery) },
+                                    onClick = { resolvedNotificationRepository?.showDemo(IslandMode.Battery) },
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(Icons.Rounded.BatteryChargingFull, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -268,7 +326,7 @@ fun SmartIslandHomeScreen() {
                 Text(
                     text = stringResource(R.string.configure_features),
                     style = MaterialTheme.typography.titleSmall,
-                    color = Color(0xFF667085),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 10.dp, bottom = 2.dp)
                 )
@@ -277,8 +335,8 @@ fun SmartIslandHomeScreen() {
                     title = stringResource(R.string.sec_permissions),
                     description = stringResource(R.string.sec_permissions_desc),
                     icon = Icons.Rounded.Lock,
-                    iconBgColor = Color(0xFFE0E7FF),
-                    iconTint = Color(0xFF4F46E5),
+                    iconBgColor = permissionsBg,
+                    iconTint = permissionsTint,
                     statusText = if (overlayGranted && notificationGranted) stringResource(R.string.status_active) else stringResource(R.string.status_action_required),
                     statusColor = if (overlayGranted && notificationGranted) Color(0xFF0F9F6E) else Color(0xFFE88C25),
                     onClick = {
@@ -288,11 +346,29 @@ fun SmartIslandHomeScreen() {
                 )
 
                 SectionRow(
+                    title = "App shortcuts",
+                    description = "Choose apps available whenever the expanded island is empty",
+                    icon = Icons.Rounded.Apps,
+                    iconBgColor = shortcutsBg,
+                    iconTint = shortcutsTint,
+                    statusText = when {
+                        settings.shortcutPackages.isNotEmpty() -> "${settings.shortcutPackages.size} selected"
+                        settings.showRecentApps -> "Recent apps enabled"
+                        else -> "Set up"
+                    },
+                    statusColor = shortcutsTint,
+                    onClick = {
+                        transitionDirection = 1
+                        activeSection = HomeSection.AppShortcuts
+                    }
+                )
+
+                SectionRow(
                     title = stringResource(R.string.sec_positions),
                     description = stringResource(R.string.sec_positions_desc),
                     icon = Icons.Rounded.Refresh,
-                    iconBgColor = Color(0xFFD1FAE5),
-                    iconTint = Color(0xFF059669),
+                    iconBgColor = positionsBg,
+                    iconTint = positionsTint,
                     onClick = {
                         transitionDirection = 1
                         activeSection = HomeSection.Positions
@@ -300,11 +376,35 @@ fun SmartIslandHomeScreen() {
                 )
 
                 SectionRow(
+                    title = "Customizations",
+                    description = "Personalize colors for battery, notifications, and music visualizer",
+                    icon = Icons.Rounded.Palette,
+                    iconBgColor = customizationsBg,
+                    iconTint = customizationsTint,
+                    onClick = {
+                        transitionDirection = 1
+                        activeSection = HomeSection.Customizations
+                    }
+                )
+
+                SectionRow(
+                    title = "Gesture guide",
+                    description = "Learn how to interact with the Smart Island",
+                    icon = Icons.Rounded.Gesture,
+                    iconBgColor = gesturesBg,
+                    iconTint = gesturesTint,
+                    onClick = {
+                        transitionDirection = 1
+                        activeSection = HomeSection.Gestures
+                    }
+                )
+
+                SectionRow(
                     title = stringResource(R.string.sec_support),
                     description = stringResource(R.string.sec_support_desc),
                     icon = Icons.Rounded.Feedback,
-                    iconBgColor = Color(0xFFFEF3C7),
-                    iconTint = Color(0xFFD97706),
+                    iconBgColor = supportBg,
+                    iconTint = supportTint,
                     onClick = {
                         transitionDirection = 1
                         activeSection = HomeSection.Support
@@ -315,8 +415,8 @@ fun SmartIslandHomeScreen() {
                     title = stringResource(R.string.sec_about),
                     description = stringResource(R.string.sec_about_desc),
                     icon = Icons.Rounded.Info,
-                    iconBgColor = Color(0xFFF3E8FF),
-                    iconTint = Color(0xFF7C3AED),
+                    iconBgColor = aboutBg,
+                    iconTint = aboutTint,
                     onClick = {
                         transitionDirection = 1
                         activeSection = HomeSection.About
@@ -331,7 +431,7 @@ fun SmartIslandHomeScreen() {
                     Text(
                         text = stringResource(R.string.made_by),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF98A2B3)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
                 Spacer(Modifier.height(12.dp))
@@ -373,7 +473,40 @@ fun SmartIslandHomeScreen() {
                             activeSection = null
                         }
                     ) {
-                        PositionsSection(settings = settings, repository = repository)
+                        PositionsSection(settings = settings, repository = resolvedRepository)
+                    }
+                }
+                HomeSection.AppShortcuts -> {
+                    SectionDetailScreen(
+                        title = "App shortcuts",
+                        onBack = {
+                            transitionDirection = -1
+                            activeSection = null
+                        }
+                    ) {
+                        AppShortcutsSection(settings = settings, repository = resolvedRepository)
+                    }
+                }
+                HomeSection.Customizations -> {
+                    SectionDetailScreen(
+                        title = "Customizations",
+                        onBack = {
+                            transitionDirection = -1
+                            activeSection = null
+                        }
+                    ) {
+                        CustomizationsSection(settings = settings, repository = resolvedRepository)
+                    }
+                }
+                HomeSection.Gestures -> {
+                    SectionDetailScreen(
+                        title = "Gesture guide",
+                        onBack = {
+                            transitionDirection = -1
+                            activeSection = null
+                        }
+                    ) {
+                        GesturesSection()
                     }
                 }
                 HomeSection.Support -> {
@@ -411,9 +544,11 @@ private fun SectionRow(
     iconBgColor: Color,
     iconTint: Color,
     statusText: String? = null,
-    statusColor: Color = Color(0xFF667085),
+    statusColor: Color? = null,
     onClick: () -> Unit
 ) {
+    val defaultStatusColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val resolvedStatusColor = statusColor ?: defaultStatusColor
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -452,18 +587,18 @@ private fun SectionRow(
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF667085)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (statusText != null) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Box(
                         modifier = Modifier
-                            .background(statusColor.copy(alpha = 0.15f), shape = RoundedCornerShape(6.dp))
+                            .background(resolvedStatusColor.copy(alpha = 0.15f), shape = RoundedCornerShape(6.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = statusText,
-                            color = statusColor,
+                            color = resolvedStatusColor,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -474,7 +609,7 @@ private fun SectionRow(
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
-                tint = Color(0xFF98A2B3),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -545,4 +680,3 @@ fun SmartIslandHomeScreenDarkPreview() {
         SmartIslandHomeScreen()
     }
 }
-

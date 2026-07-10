@@ -32,12 +32,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.agupta07505.smartisland.R
+import com.agupta07505.smartisland.util.runCatchingLogged
 
 @Composable
 fun HeaderSection() {
     val context = LocalContext.current
     val appIcon = remember(context) {
-        runCatching {
+        runCatchingLogged("HeaderSection", "Failed to get application icon") {
             val drawable = context.packageManager.getApplicationIcon(context.packageName)
             val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 144
             val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 144
@@ -46,7 +47,7 @@ fun HeaderSection() {
             drawable.setBounds(0, 0, width, height)
             drawable.draw(canvas)
             bitmap.asImageBitmap()
-        }.getOrNull()
+        }
     }
 
     Column(
@@ -81,13 +82,13 @@ fun HeaderSection() {
         Text(
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineLarge,
-            color = Color(0xFF101828),
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = stringResource(R.string.app_description),
-            color = Color(0xFF667085),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
         )

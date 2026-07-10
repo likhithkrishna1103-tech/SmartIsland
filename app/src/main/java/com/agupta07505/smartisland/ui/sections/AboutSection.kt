@@ -11,6 +11,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
+import com.agupta07505.smartisland.util.runCatchingLogged
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.agupta07505.smartisland.ui.components.ClickableRowItem
 
 @Composable
 fun AboutSection() {
@@ -55,38 +58,44 @@ fun AboutSection() {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                AboutItem(
+                ClickableRowItem(
                     label = "Version",
                     value = getAppVersion(context),
                     icon = Icons.Rounded.Info,
                     onClick = {}
                 )
-                AboutItem(
+                ClickableRowItem(
                     label = "Privacy Policy",
                     icon = Icons.Rounded.Lock,
                     onClick = {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/agupta07505/SmartIsland/blob/main/PRIVACY.md"))
-                        runCatching { context.startActivity(intent) }
+                        runCatchingLogged("AboutSection", "Failed to open Privacy Policy") {
+                            context.startActivity(intent)
+                        } ?: Toast.makeText(context, "Cannot open link", Toast.LENGTH_SHORT).show()
                     }
                 )
-                AboutItem(
+                ClickableRowItem(
                     label = "Terms of Use",
                     icon = Icons.Rounded.Description,
                     onClick = {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/agupta07505/SmartIsland/blob/main/TERMS.md"))
-                        runCatching { context.startActivity(intent) }
+                        runCatchingLogged("AboutSection", "Failed to open Terms of Use") {
+                            context.startActivity(intent)
+                        } ?: Toast.makeText(context, "Cannot open link", Toast.LENGTH_SHORT).show()
                     }
                 )
-                AboutItem(
+                ClickableRowItem(
                     label = "Open Source",
                     icon = Icons.Rounded.Code,
                     onClick = {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/agupta07505/SmartIsland"))
-                        runCatching { context.startActivity(intent) }
+                        runCatchingLogged("AboutSection", "Failed to open Open Source link") {
+                            context.startActivity(intent)
+                        } ?: Toast.makeText(context, "Cannot open link", Toast.LENGTH_SHORT).show()
                     }
                 )
             }
@@ -95,11 +104,11 @@ fun AboutSection() {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                Text("Contact me", style = MaterialTheme.typography.titleSmall, color = Color(0xFF667085), fontWeight = FontWeight.SemiBold)
+                Text("Contact me", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
@@ -107,11 +116,13 @@ fun AboutSection() {
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ContactButton(
-                        icon = { GithubIcon(tint = Color(0xFF1F2937)) },
+                        icon = { GithubIcon(tint = MaterialTheme.colorScheme.onSurface) },
                         label = "GitHub",
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/agupta07505"))
-                            runCatching { context.startActivity(intent) }
+                            runCatchingLogged("AboutSection", "Failed to open GitHub profile") {
+                                context.startActivity(intent)
+                            } ?: Toast.makeText(context, "Cannot open link", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -120,7 +131,9 @@ fun AboutSection() {
                         label = "LinkedIn",
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://linkedin.com/in/agupta07505"))
-                            runCatching { context.startActivity(intent) }
+                            runCatchingLogged("AboutSection", "Failed to open LinkedIn profile") {
+                                context.startActivity(intent)
+                            } ?: Toast.makeText(context, "Cannot open link", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -135,7 +148,9 @@ fun AboutSection() {
                         label = "Instagram",
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://instagram.com/agupta07505"))
-                            runCatching { context.startActivity(intent) }
+                            runCatchingLogged("AboutSection", "Failed to open Instagram profile") {
+                                context.startActivity(intent)
+                            } ?: Toast.makeText(context, "Cannot open link", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -147,7 +162,9 @@ fun AboutSection() {
                                 data = Uri.parse("mailto:agupta07505@gmail.com")
                                 putExtra(Intent.EXTRA_SUBJECT, "Smart Island App Feedback")
                             }
-                            runCatching { context.startActivity(intent) }
+                            runCatchingLogged("AboutSection", "Failed to send email") {
+                                context.startActivity(intent)
+                            } ?: Toast.makeText(context, "Cannot open email app", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -157,53 +174,7 @@ fun AboutSection() {
     }
 }
 
-@Composable
-private fun AboutItem(
-    label: String,
-    icon: ImageVector,
-    value: String? = null,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = value == null, onClick = onClick)
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Color(0xFF667085),
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF344054)
-            )
-        }
-        if (value != null) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF98A2B3)
-            )
-        } else {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFF98A2B3),
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
+
 
 @Composable
 private fun ContactButton(
@@ -226,7 +197,7 @@ private fun ContactButton(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = Color(0xFF344054),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -344,7 +315,7 @@ private fun EmailIcon(tint: Color = Color.Black) {
 }
 
 private fun getAppVersion(context: Context): String {
-    return runCatching {
+    return runCatchingLogged("AboutSection", "Failed to get app version") {
         val packageInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
         } else {
@@ -352,5 +323,5 @@ private fun getAppVersion(context: Context): String {
             context.packageManager.getPackageInfo(context.packageName, 0)
         }
         packageInfo.versionName ?: "1.0"
-    }.getOrDefault("1.0")
+    } ?: "1.0"
 }

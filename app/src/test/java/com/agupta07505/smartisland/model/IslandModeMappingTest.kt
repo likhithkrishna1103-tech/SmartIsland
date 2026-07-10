@@ -8,7 +8,7 @@
 package com.agupta07505.smartisland.model
 
 import android.app.Notification
-import com.agupta07505.smartisland.service.toIslandMode
+import com.agupta07505.smartisland.util.toIslandMode
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -25,10 +25,24 @@ class IslandModeMappingTest {
     }
 
     @Test
-    fun testCategoryMissedCallMapsToIncomingCall() {
+    fun testCategoryMissedCallMapsToRegularNotification() {
         val notification = mockk<Notification>()
         notification.category = Notification.CATEGORY_MISSED_CALL
         notification.actions = null
+
+        assertEquals(IslandMode.Notification, notification.toIslandMode())
+    }
+
+    @Test
+    fun testAnswerAndDeclineActionPairMapsToIncomingCall() {
+        val notification = mockk<Notification>()
+        notification.category = Notification.CATEGORY_MESSAGE
+
+        val answerAction = mockk<Notification.Action>()
+        answerAction.title = "Answer"
+        val declineAction = mockk<Notification.Action>()
+        declineAction.title = "Decline"
+        notification.actions = arrayOf(answerAction, declineAction)
 
         assertEquals(IslandMode.IncomingCall, notification.toIslandMode())
     }
@@ -43,25 +57,25 @@ class IslandModeMappingTest {
     }
 
     @Test
-    fun testCategoryProgressMapsToMusic() {
+    fun testCategoryProgressMapsToRegularNotification() {
         val notification = mockk<Notification>()
         notification.category = Notification.CATEGORY_PROGRESS
         notification.actions = null
 
-        assertEquals(IslandMode.Music, notification.toIslandMode())
+        assertEquals(IslandMode.Notification, notification.toIslandMode())
     }
 
     @Test
-    fun testMediaActionsMapsToMusic() {
+    fun testMediaActionsWithoutMediaSessionRemainRegularNotification() {
         val notification = mockk<Notification>()
         notification.category = Notification.CATEGORY_MESSAGE
-        
+
         val playAction = mockk<Notification.Action>()
         playAction.title = "Play track"
-        
+
         notification.actions = arrayOf(playAction)
 
-        assertEquals(IslandMode.Music, notification.toIslandMode())
+        assertEquals(IslandMode.Notification, notification.toIslandMode())
     }
 
     @Test

@@ -10,6 +10,8 @@ package com.agupta07505.smartisland.ui.sections
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
+import com.agupta07505.smartisland.util.runCatchingLogged
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -62,7 +64,7 @@ fun PermissionsSection(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Row(
@@ -75,7 +77,7 @@ fun PermissionsSection(
                 Icon(
                     imageVector = Icons.Rounded.VisibilityOff,
                     contentDescription = null,
-                    tint = Color(0xFF667085)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -86,14 +88,16 @@ fun PermissionsSection(
                     Text(
                         text = "Redirect to notification settings to hide the \"displaying over other apps\" alert.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF5C6675)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Button(onClick = {
                     val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                         putExtra(Settings.EXTRA_APP_PACKAGE, "android")
                     }
-                    runCatching { context.startActivity(intent) }
+                    runCatchingLogged("PermissionsSection", "Failed to open notification settings") {
+                        context.startActivity(intent)
+                    } ?: Toast.makeText(context, "Cannot open settings", Toast.LENGTH_SHORT).show()
                 }) {
                     Text("Hide")
                 }

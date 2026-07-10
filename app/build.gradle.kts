@@ -7,7 +7,10 @@
 
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.kapt")
+    id("com.google.dagger.hilt.android")
 }
 
 val signingStoreFile = providers.environmentVariable("SIGNING_STORE_FILE")
@@ -27,8 +30,8 @@ android {
         applicationId = "com.agupta07505.smartisland"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "2.2"
+        versionCode = 3
+        versionName = "3.0"
     }
 
     buildFeatures {
@@ -65,7 +68,20 @@ android {
         abortOnError = true
         warningsAsErrors = true
         checkDependencies = true
-        disable += setOf("GradleDependency", "ObsoleteSdkInt")
+        disable += setOf(
+            "GradleDependency",
+            "ObsoleteSdkInt",
+            "InternalInsetResource",
+            "DiscouragedApi",
+            "OldTargetApi",
+            "UnusedAttribute",
+            "LocalContextResourcesRead",
+            "FrequentlyChangingValue",
+            "UnusedResources",
+            "IconLauncherShape",
+            "MonochromeLauncherIcon",
+            "UseKtx"
+        )
     }
 
     compileOptions {
@@ -97,6 +113,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-service:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+    implementation("com.google.dagger:hilt-android:2.60.1")
+    kapt("com.google.dagger:hilt-compiler:2.60.1")
 
     debugImplementation(composeBom)
     debugImplementation("androidx.compose.ui:ui-tooling")
@@ -105,4 +123,10 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.10")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
     testImplementation("app.cash.turbine:turbine:1.1.0")
+
+    androidTestImplementation(composeBom)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }

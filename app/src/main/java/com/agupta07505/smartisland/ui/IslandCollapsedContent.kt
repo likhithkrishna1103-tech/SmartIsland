@@ -8,6 +8,7 @@
 package com.agupta07505.smartisland.ui
 
 import com.agupta07505.smartisland.util.formatNotificationTime
+import com.agupta07505.smartisland.ui.components.DottedRing
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
+import com.agupta07505.smartisland.data.SmartIslandSettings
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import java.text.SimpleDateFormat
@@ -63,41 +65,21 @@ fun IslandCollapsedContent(
     mode: IslandMode,
     notification: IslandNotification?,
     collapsedAlpha: Float,
+    settings: SmartIslandSettings,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val maxTranslationPx = with(density) { 48.dp.toPx() }
+    val maxTranslationPx = with(density) { COLLAPSED_TRANSLATION_MAX_DP.toPx() }
     val translationProgress = 1f - collapsedAlpha
     val translationXLeft = translationProgress * maxTranslationPx
     val translationXRight = -translationProgress * maxTranslationPx
-
-    val infiniteTransition = rememberInfiniteTransition(label = "batteryPulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.9f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "batteryScale"
-    )
-
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "dottedRingRotation"
-    )
 
     Box(modifier = modifier.fillMaxSize()) {
         // Left Slot (Icon / Glyphs)
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 8.dp)
+                .padding(start = LEFT_SLOT_PADDING_START_DP.dp)
                 .graphicsLayer {
                     translationX = translationXLeft
                 },
@@ -152,31 +134,7 @@ fun IslandCollapsedContent(
                     }
                 }
                 IslandMode.Battery -> {
-                    val pctText = notification?.text?.replace("%", "")?.trim() ?: "49"
-                    val pct = pctText.toFloatOrNull() ?: 49f
-                    val progress = (pct / 100f).coerceIn(0f, 1f)
-                    Box(
-                        modifier = Modifier.size(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        DottedRing(
-                            progress = progress,
-                            rotationAngle = rotationAngle,
-                            modifier = Modifier.size(22.dp),
-                            color = Color(0xFF10B981)
-                        )
-                        Icon(
-                            Icons.Rounded.Bolt,
-                            contentDescription = "Charging",
-                            tint = Color(0xFF10B981),
-                            modifier = Modifier
-                                .size(14.dp)
-                                .graphicsLayer {
-                                    scaleX = pulseScale
-                                    scaleY = pulseScale
-                                }
-                        )
-                    }
+                    BatteryCollapsedGlyph(notification = notification, settings = settings)
                 }
                 IslandMode.Empty -> Unit
             }
@@ -186,7 +144,7 @@ fun IslandCollapsedContent(
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 12.dp)
+                .padding(end = RIGHT_SLOT_PADDING_END_DP.dp)
                 .graphicsLayer {
                     translationX = translationXRight
                 },
@@ -198,7 +156,7 @@ fun IslandCollapsedContent(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF2563EB))
+                            .background(Color(settings.notificationDotColor))
                     )
                 }
                 IslandMode.IncomingCall -> {
@@ -208,13 +166,13 @@ fun IslandCollapsedContent(
                 IslandMode.Music -> {
                     AudioVisualizer(
                         isPlaying = notification?.mediaIsPlaying == true,
-                        color = Color(0xFFFF6B9A)
+                        color = Color(settings.musicVisualizerColor)
                     )
                 }
                 IslandMode.Battery -> {
                     Text(
                         text = notification?.text ?: "49%",
-                        color = Color(0xFF10B981),
+                        color = Color(settings.batteryColor),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -226,7 +184,7 @@ fun IslandCollapsedContent(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(20.dp)
+                .size(CENTER_DOT_SIZE_DP.dp)
                 .clip(CircleShape)
                 .background(Color.Black)
         )
@@ -234,25 +192,54 @@ fun IslandCollapsedContent(
 }
 
 @Composable
-private fun DottedRing(
-    progress: Float,
-    rotationAngle: Float,
-    modifier: Modifier = Modifier,
-    color: Color = Color(0xFF10B981)
-) {
-    androidx.compose.foundation.Canvas(modifier = modifier) {
-        val radius = size.minDimension / 2f
-        val dotRadius = 1.2.dp.toPx()
-        val numDots = 16
-        val activeDotsCount = (numDots * progress).toInt()
-        for (i in 0 until numDots) {
-            val angle = (-90f + rotationAngle + i * 360f / numDots) * (Math.PI / 180f)
-            val x = (center.x + radius * Math.cos(angle)).toFloat()
-            val y = (center.y + radius * Math.sin(angle)).toFloat()
-            val isActive = i < activeDotsCount
-            val dotColor = if (isActive) color else Color(0x33FFFFFF)
-            drawCircle(color = dotColor, radius = dotRadius, center = androidx.compose.ui.geometry.Offset(x, y))
-        }
+private fun BatteryCollapsedGlyph(notification: IslandNotification?, settings: SmartIslandSettings) {
+    val pctText = notification?.text?.replace("%", "")?.trim() ?: "49"
+    val pct = pctText.toFloatOrNull() ?: 49f
+    val progress = (pct / 100f).coerceIn(0f, 1f)
+    val batteryColor = Color(settings.batteryColor)
+
+    val infiniteTransition = rememberInfiniteTransition(label = "batteryPulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "batteryScale"
+    )
+
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 8000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dottedRingRotation"
+    )
+
+    Box(
+        modifier = Modifier.size(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        DottedRing(
+            progress = progress,
+            rotationAngle = rotationAngle,
+            modifier = Modifier.size(22.dp),
+            color = batteryColor
+        )
+        Icon(
+            Icons.Rounded.Bolt,
+            contentDescription = "Charging",
+            tint = batteryColor,
+            modifier = Modifier
+                .size(14.dp)
+                .graphicsLayer {
+                    scaleX = pulseScale
+                    scaleY = pulseScale
+                }
+        )
     }
 }
 
@@ -346,3 +333,9 @@ private fun CallTimer(postTimeMillis: Long, color: Color) {
         fontWeight = FontWeight.SemiBold
     )
 }
+
+// Collapsed content animation
+private val COLLAPSED_TRANSLATION_MAX_DP = 32.dp
+private const val LEFT_SLOT_PADDING_START_DP = 8
+private const val RIGHT_SLOT_PADDING_END_DP = 12
+private const val CENTER_DOT_SIZE_DP = 20

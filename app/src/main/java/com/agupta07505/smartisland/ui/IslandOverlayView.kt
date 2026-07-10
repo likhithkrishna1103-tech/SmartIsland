@@ -7,6 +7,7 @@
 
 package com.agupta07505.smartisland.ui
 
+import com.agupta07505.smartisland.ui.expanded.IslandExpandedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDp
@@ -29,7 +30,6 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,10 +48,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.agupta07505.smartisland.SmartIslandApp
 import com.agupta07505.smartisland.data.SmartIslandSettings
+import com.agupta07505.smartisland.di.SmartIslandRepositories
 import com.agupta07505.smartisland.model.IslandMode
 import com.agupta07505.smartisland.model.IslandNotification
+import com.agupta07505.smartisland.data.LaunchableApp
 
 @Composable
 fun IslandOverlayView(
@@ -59,8 +60,10 @@ fun IslandOverlayView(
     expanded: Boolean,
     notifications: List<IslandNotification>,
     selectedIndex: Int,
+    launcherApps: List<LaunchableApp>?,
     onPageSelected: (Int) -> Unit,
     onOpenNotification: (IslandNotification) -> Unit,
+    onLaunchApp: (String) -> Unit,
     onToggleExpanded: () -> Unit,
     onDismissNotification: () -> Unit,
     onOpenFloatingWindow: () -> Unit,
@@ -79,15 +82,11 @@ fun IslandOverlayView(
 
     val context = LocalContext.current
     val displayMetrics = context.resources.displayMetrics
-    val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * 0.95f).dp
+    val screenCenterPx = displayMetrics.widthPixels / 2f
+    val expandedWidth = ((displayMetrics.widthPixels / displayMetrics.density) * EXPANDED_WIDTH_RATIO).dp
     val transition = updateTransition(targetState = expanded, label = "islandTransition")
 
     val sizeSpec = spring<androidx.compose.ui.unit.Dp>(
-        dampingRatio = 0.6f,
-        stiffness = 300f
-    )
-    
-    val sizeSpecInt = spring<androidx.compose.ui.unit.IntSize>(
         dampingRatio = 0.6f,
         stiffness = 300f
     )
@@ -95,24 +94,44 @@ fun IslandOverlayView(
         dampingRatio = 0.6f,
         stiffness = 300f
     )
+    val heightSpec = spring<androidx.compose.ui.unit.Dp>(
+        // Height must never overshoot its measured content. Overshoot is
+        // especially visible on the compact battery card as empty black space.
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMedium
+    )
     val alphaSpec = tween<Float>(
         durationMillis = 280,
         easing = FastOutSlowInEasing
     )
 
-    var expandedHeight by remember { mutableStateOf<Dp?>(null) }
+    // FIX: Start from collapsed height so the transition target never jumps
+    // to a hardcoded 160dp. Content measurement updates this within 1-2 frames,
+    // and the spring animation smoothly interpolates to the real height.
+    //
+    // Keyed on `expanded` so it resets to collapsed height on every expand/collapse
+    // cycle, avoiding stale measurements from a previous expansion.
+    var expandedHeight by remember(expanded) {
+        mutableStateOf(settings.height.dp)
+    }
 
     val width by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandWidth") {
         if (it) expandedWidth else settings.width.dp
     }
-    val height by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandHeight") {
-        if (it) (expandedHeight ?: 160.dp) else settings.height.dp
+    val height by transition.animateDp(transitionSpec = { heightSpec }, label = "islandHeight") {
+        // FIX: No more 160.dp hardcoded fallback. expandedHeight is always non-null now.
+        // It starts at collapsed height and gets updated to the real content height
+        // within 1-2 frames. The spring animation smoothly follows.
+        if (it) expandedHeight else settings.height.dp
     }
     val yOffset by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandYOffset") {
         if (it) statusBarHeight.dp else 0.dp
     }
     val radius by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandRadius") {
         if (it) 34.dp else settings.cornerRadius.dp
+    }
+    val animatedXOffset by transition.animateDp(transitionSpec = { sizeSpec }, label = "islandXOffset") {
+        if (it) 0.dp else settings.xOffset.dp
     }
 
     val collapsedAlpha by transition.animateFloat(
@@ -156,7 +175,7 @@ fun IslandOverlayView(
                     currentOnToggle()
                 }
             },
-        contentAlignment = Alignment.TopCenter
+        contentAlignment = Alignment.TopStart
     ) {
         // Stack Indicator Brackets: concentric parentheses curves drawn behind the pill when notifications > 1
         if (notifications.size > 1 && collapsedAlpha > 0f) {
@@ -165,7 +184,9 @@ fun IslandOverlayView(
                     .width(width)
                     .height(height)
                     .graphicsLayer {
-                        translationX = settings.xOffset.dp.toPx()
+                        val currentWidth = size.width
+                        val desiredCenterX = screenCenterPx + animatedXOffset.toPx()
+                        translationX = desiredCenterX - (currentWidth / 2f)
                         translationY = yOffset.toPx() + dragOffset
                         alpha = collapsedAlpha
                     }
@@ -173,15 +194,15 @@ fun IslandOverlayView(
                 val h = size.height
                 val w = size.width
                 val r = radius.toPx().coerceAtMost(h / 2f)
-                val gap = 3.5.dp.toPx()
-                val strokeW = 1.5.dp.toPx()
+                val gap = STACK_INDICATOR_GAP_DP.dp.toPx()
+                val strokeW = STACK_INDICATOR_STROKE_DP.dp.toPx()
                 val rArc = r + gap
 
                 // Left Arc: concentric bracket curve on the left
                 drawArc(
                     color = Color.Black,
-                    startAngle = 145f,
-                    sweepAngle = 70f,
+                    startAngle = STACK_LEFT_ARC_START,
+                    sweepAngle = STACK_INDICATOR_ARC_SWEEP,
                     useCenter = false,
                     topLeft = Offset(-gap - strokeW / 2f, h / 2f - rArc - strokeW / 2f),
                     size = Size(rArc * 2f + strokeW, rArc * 2f + strokeW),
@@ -191,8 +212,8 @@ fun IslandOverlayView(
                 // Right Arc: concentric bracket curve on the right
                 drawArc(
                     color = Color.Black,
-                    startAngle = 325f,
-                    sweepAngle = 70f,
+                    startAngle = STACK_RIGHT_ARC_START,
+                    sweepAngle = STACK_INDICATOR_ARC_SWEEP,
                     useCenter = false,
                     topLeft = Offset(w - r * 2f - gap - strokeW / 2f, h / 2f - rArc - strokeW / 2f),
                     size = Size(rArc * 2f + strokeW, rArc * 2f + strokeW),
@@ -207,7 +228,9 @@ fun IslandOverlayView(
                 .width(width)
                 .height(height)
                 .graphicsLayer {
-                    translationX = settings.xOffset.dp.toPx()
+                    val currentWidth = size.width
+                    val desiredCenterX = screenCenterPx + animatedXOffset.toPx()
+                    translationX = desiredCenterX - (currentWidth / 2f)
                     translationY = yOffset.toPx() + dragOffset
                 }
                 .clip(RoundedCornerShape(radius))
@@ -215,7 +238,7 @@ fun IslandOverlayView(
                 .pointerInput(Unit) {
                     detectTapGestures {
                         if (currentExpanded) {
-                            (context.applicationContext as? SmartIslandApp)?.notificationRepository?.resetTimer()
+                            SmartIslandRepositories.notificationRepository(context).resetTimer()
                         } else {
                             currentOnToggle()
                         }
@@ -231,12 +254,15 @@ fun IslandOverlayView(
                             dragAccumulator += dragAmount
                             if (currentExpanded) {
                                 change.consume()
-                                dragOffset = dragAccumulator.coerceIn(-100f * displayMetrics.density, 100f * displayMetrics.density)
+                                dragOffset = dragAccumulator.coerceIn(
+                                    -DRAG_MAX_OFFSET_DP * displayMetrics.density,
+                                    DRAG_MAX_OFFSET_DP * displayMetrics.density
+                                )
                             }
                         },
                         onDragEnd = {
-                            val swipeUpThreshold = -35f * displayMetrics.density
-                            val swipeDownThreshold = 35f * displayMetrics.density
+                            val swipeUpThreshold = -SWIPE_THRESHOLD_DP * displayMetrics.density
+                            val swipeDownThreshold = SWIPE_THRESHOLD_DP * displayMetrics.density
                             if (currentExpanded) {
                                 if (dragOffset < swipeUpThreshold) {
                                     currentOnDismiss()
@@ -280,14 +306,15 @@ fun IslandOverlayView(
                         .fillMaxSize()
                         .graphicsLayer {
                             alpha = collapsedAlpha
-                            scaleX = collapsedAlpha * 0.1f + 0.9f
-                            scaleY = collapsedAlpha * 0.1f + 0.9f
+                            scaleX = collapsedAlpha * COLLAPSED_SCALE_RANGE + COLLAPSED_SCALE_MIN
+                            scaleY = collapsedAlpha * COLLAPSED_SCALE_RANGE + COLLAPSED_SCALE_MIN
                         }
                 ) {
                     IslandCollapsedContent(
                         mode = activeMode,
                         notification = activeNotification,
-                        collapsedAlpha = collapsedAlpha
+                        collapsedAlpha = collapsedAlpha,
+                        settings = settings
                     )
                 }
             }
@@ -308,15 +335,36 @@ fun IslandOverlayView(
                 ) {
                     IslandExpandedContent(
                         notifications = notifications,
+                        launcherApps = launcherApps,
                         selectedIndex = selectedIndex,
                         onPageSelected = onPageSelected,
                         onOpenNotification = onOpenNotification,
+                        onLaunchApp = onLaunchApp,
                         onCollapse = onToggleExpanded,
                         statusBarHeight = statusBarHeight.dp,
-                        onHeightMeasured = { expandedHeight = it }
+                        // Each mode owns its natural height. The launcher already
+                        // supplies its own loading height and must not impose that
+                        // minimum on compact call or battery content.
+                        onHeightMeasured = { expandedHeight = it },
+                        settings = settings
                     )
                 }
             }
         }
     }
 }
+
+// Animation specs
+private const val EXPANDED_WIDTH_RATIO = 0.95f
+private const val SWIPE_THRESHOLD_DP = 35f
+private const val COLLAPSE_ANIMATION_DELAY_MS = 500L
+private const val DRAG_MAX_OFFSET_DP = 100f
+private const val COLLAPSED_SCALE_MIN = 0.9f
+private const val COLLAPSED_SCALE_RANGE = 0.1f
+
+// Visual specs
+private const val STACK_INDICATOR_GAP_DP = 3.5f
+private const val STACK_INDICATOR_STROKE_DP = 1.5f
+private const val STACK_INDICATOR_ARC_SWEEP = 70f
+private const val STACK_LEFT_ARC_START = 145f
+private const val STACK_RIGHT_ARC_START = 325f
