@@ -333,7 +333,11 @@ fun IslandOverlayView(
                         onLaunchApp = onLaunchApp,
                         onCollapse = onToggleExpanded,
                         statusBarHeight = statusBarHeight.dp,
-                        onHeightMeasured = { expandedHeight = it },
+                        onHeightMeasured = {
+                            // Never let asynchronously loaded empty-state content
+                            // remain trapped at the collapsed pill height.
+                            expandedHeight = it.coerceAtLeast(MIN_EXPANDED_HEIGHT_DP.dp)
+                        },
                         settings = settings
                     )
                 }
@@ -349,6 +353,7 @@ private const val COLLAPSE_ANIMATION_DELAY_MS = 500L
 private const val DRAG_MAX_OFFSET_DP = 100f
 private const val COLLAPSED_SCALE_MIN = 0.9f
 private const val COLLAPSED_SCALE_RANGE = 0.1f
+private const val MIN_EXPANDED_HEIGHT_DP = 112f
 
 // Visual specs
 private const val STACK_INDICATOR_GAP_DP = 3.5f
