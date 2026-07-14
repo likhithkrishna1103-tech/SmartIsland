@@ -24,7 +24,8 @@
   <a href="#features">Features</a> |
   <a href="#getting-started">Getting Started</a> |
   <a href="#privacy-and-permissions">Privacy</a> |
-  <a href="#contributing">Contributing</a>
+  <a href="#contributing">Contributing</a> |
+  <a href="https://telegram.me/SmartIslandApp">Telegram Community</a>
 </p>
 
 ---
@@ -39,6 +40,7 @@ The project is designed to be transparent, hackable, and privacy-conscious: noti
 
 * **Download APK**: Obtain the pre-compiled application package directly from the [GitHub Releases (Latest)](https://github.com/agupta07505/SmartIsland/releases/latest) page.
 * **Total Downloads**: ![Total Downloads](https://img.shields.io/github/downloads/agupta07505/SmartIsland/total?color=2ea44f&logo=github)
+* **Telegram Channel**: Join our community at [telegram.me/SmartIslandApp](https://telegram.me/SmartIslandApp) to stay updated, suggest features, and discuss the app.
 * **Security Verification**: To ensure transparency and safety, you can inspect the files using [VirusTotal](https://www.virustotal.com/gui/file/c07da408e7fa3e3fdeb25ec6415af07f1d56eff099840221138e9364c6065102/details) or review the automatic building and packaging logs under the GitHub Actions tab.
 
 ## Screenshots
