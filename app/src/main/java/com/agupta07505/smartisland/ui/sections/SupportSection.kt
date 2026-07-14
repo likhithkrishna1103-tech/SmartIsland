@@ -96,10 +96,13 @@ fun SupportSection() {
                 }
             )
             ClickableRowItem(
-                label = "Community (Coming soon)",
+                label = "Telegram Community",
                 icon = Icons.Rounded.People,
                 onClick = {
-                    Toast.makeText(context, "Community is coming soon!", Toast.LENGTH_SHORT).show()
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://telegram.me/SmartIslandApp"))
+                    runCatchingLogged("SupportSection", "Failed to open Telegram Community link") {
+                        context.startActivity(intent)
+                    } ?: Toast.makeText(context, "Cannot open link", Toast.LENGTH_SHORT).show()
                 }
             )
         }
