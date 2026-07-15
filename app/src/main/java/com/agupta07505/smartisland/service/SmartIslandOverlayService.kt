@@ -233,13 +233,10 @@ class SmartIslandOverlayService : AccessibilityService() {
     // Use reflection to set up OnComputeInternalInsetsListener since it is a hidden system API.
     // This allows the overlay window to pass through touches outside the pill boundary.
     private fun setupTouchableRegion(view: ComposeView) {
+        android.util.Log.d(TAG, "setupTouchableRegion: starting registration for view=$view")
         runCatchingLogged(TAG, "Failed to setup touchable region") {
-            val viewTreeObserver = view.viewTreeObserver
             val listenerClass = Class.forName("android.view.ViewTreeObserver\$OnComputeInternalInsetsListener")
             val insetsClass = Class.forName("android.view.ViewTreeObserver\$InternalInsetsInfo")
-            
-            // Log fields for troubleshooting if needed
-            android.util.Log.d(TAG, "InternalInsetsInfo fields: " + insetsClass.declaredFields.map { it.name })
             
             val setTouchableInsetsMethod = insetsClass.getMethod("setTouchableInsets", Int::class.javaPrimitiveType)
             val touchableRegionField = insetsClass.getDeclaredField("touchableRegion").apply {
@@ -258,11 +255,17 @@ class SmartIslandOverlayService : AccessibilityService() {
                 if (method.name == "onComputeInternalInsets" && args != null && args.isNotEmpty()) {
                     val insets = args[0]
                     val isExpanded = viewModel.expanded.value
+                    android.util.Log.d(TAG, "onComputeInternalInsets callback: isExpanded=$isExpanded")
                     if (isExpanded) {
                         // When expanded, let the entire frame intercept touches so clicking outside collapses it
                         setTouchableInsetsMethod.invoke(insets, TOUCHABLE_INSETS_FRAME)
                     } else {
-                        // When collapsed, restrict touch interception to ONLY the pill bounds + padding
+                        // PILL-ONLY TOUCHABLE REGION:
+                        // Restrict touch interception to ONLY the pill bounds + padding.
+                        // Since the window starts at y = 0, we offset the touchable region
+                        // vertically by yOffset. Touches outside the pill (status bar zone
+                        // and top offset area) pass through to the system natively, which
+                        // handles left/right notification and quick settings pull-down.
                         setTouchableInsetsMethod.invoke(insets, TOUCHABLE_INSETS_REGION)
                         
                         val density = resources.displayMetrics.density
@@ -271,11 +274,12 @@ class SmartIslandOverlayService : AccessibilityService() {
                         val pillWidthPx = (settingsVal.width + 12f) * density
                         val pillHeightPx = (settingsVal.height + 16f) * density
                         
-                        val left = ((screenWidth - pillWidthPx) / 2).toInt()
-                        val top = 0
-                        val right = ((screenWidth + pillWidthPx) / 2).toInt()
-                        val bottom = pillHeightPx.toInt()
+                        val left = ((screenWidth - pillWidthPx) / 2f + settingsVal.xOffset * density).toInt()
+                        val top = (settingsVal.yOffset * density).toInt()
+                        val right = (left + pillWidthPx).toInt()
+                        val bottom = (top + pillHeightPx).toInt()
                         
+                        android.util.Log.d(TAG, "onComputeInternalInsets: region set to ($left, $top, $right, $bottom)")
                         val region = touchableRegionField.get(insets) as android.graphics.Region
                         region.set(left, top, right, bottom)
                     }
@@ -283,11 +287,35 @@ class SmartIslandOverlayService : AccessibilityService() {
                 null
             }
             
-            val addListenerMethod = viewTreeObserver.javaClass.getMethod(
-                "addOnComputeInternalInsetsListener",
-                listenerClass
-            )
-            addListenerMethod.invoke(viewTreeObserver, proxyListener)
+            val registerListener = {
+                val observer = view.viewTreeObserver
+                android.util.Log.d(TAG, "registerListener lambda: viewTreeObserver=$observer, isAlive=${observer.isAlive}")
+                if (observer.isAlive) {
+                    val addListenerMethod = observer.javaClass.getMethod(
+                        "addOnComputeInternalInsetsListener",
+                        listenerClass
+                    )
+                    addListenerMethod.invoke(observer, proxyListener)
+                    android.util.Log.d(TAG, "OnComputeInternalInsetsListener successfully registered on live ViewTreeObserver")
+                }
+            }
+            
+            // ViewTreeObserver changes when the view is attached to a window.
+            // We must register the listener on the live ViewTreeObserver of the attached window.
+            android.util.Log.d(TAG, "setupTouchableRegion: isAttachedToWindow=${view.isAttachedToWindow}")
+            if (view.isAttachedToWindow) {
+                registerListener()
+            } else {
+                view.addOnAttachStateChangeListener(object : android.view.View.OnAttachStateChangeListener {
+                    override fun onViewAttachedToWindow(v: android.view.View) {
+                        android.util.Log.d(TAG, "onViewAttachedToWindow: registering listener now")
+                        registerListener()
+                    }
+                    override fun onViewDetachedFromWindow(v: android.view.View) {
+                        android.util.Log.d(TAG, "onViewDetachedFromWindow called")
+                    }
+                })
+            }
         }
     }
 
