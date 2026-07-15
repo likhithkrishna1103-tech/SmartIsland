@@ -359,32 +359,98 @@ fun SmartIslandHomeScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Show on lock screen",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "Keep the Smart Island visible when the device is locked.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Show on lock screen",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Keep the Smart Island visible when the device is locked.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = settings.showOnLockScreen,
+                                onCheckedChange = { checked ->
+                                    scope.launch { resolvedRepository.setShowOnLockScreen(checked) }
+                                }
                             )
                         }
-                        Switch(
-                            checked = settings.showOnLockScreen,
-                            onCheckedChange = { checked ->
-                                scope.launch { resolvedRepository.setShowOnLockScreen(checked) }
+
+                        if (settings.showOnLockScreen) {
+                            androidx.compose.material3.HorizontalDivider(
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                thickness = 1.dp,
+                                modifier = Modifier.padding(horizontal = 18.dp)
+                            )
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Lock screen privacy",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val isIconOnly = settings.lockScreenPrivacy == "AppIconOnly"
+                                    androidx.compose.material3.OutlinedButton(
+                                        onClick = {
+                                            scope.launch { resolvedRepository.setLockScreenPrivacy("AppIconOnly") }
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = if (isIconOnly) {
+                                            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                                        } else {
+                                            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                        },
+                                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                            containerColor = if (isIconOnly) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent
+                                        )
+                                    ) {
+                                        Text("App/Icon only", fontSize = 12.sp, color = if (isIconOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                    }
+
+                                    val isFull = settings.lockScreenPrivacy == "FullContent"
+                                    androidx.compose.material3.OutlinedButton(
+                                        onClick = {
+                                            scope.launch { resolvedRepository.setLockScreenPrivacy("FullContent") }
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = if (isFull) {
+                                            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                                        } else {
+                                            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                        },
+                                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                            containerColor = if (isFull) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent
+                                        )
+                                    ) {
+                                        Text("Full content", fontSize = 12.sp, color = if (isFull) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                    }
+                                }
                             }
-                        )
+                        }
                     }
                 }
 

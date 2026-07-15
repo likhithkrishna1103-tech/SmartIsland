@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +35,7 @@ class SmartIslandSettingsRepository(private val context: Context) {
         val ShowRecentApps = booleanPreferencesKey("show_recent_apps")
         val WelcomeDialogShown = booleanPreferencesKey("welcome_dialog_shown")
         val ShowOnLockScreen = booleanPreferencesKey("show_on_lock_screen")
+        val LockScreenPrivacy = stringPreferencesKey("lock_screen_privacy")
     }
 
     val settings: Flow<SmartIslandSettings> = context.smartIslandDataStore.data.map { prefs ->
@@ -50,7 +52,8 @@ class SmartIslandSettingsRepository(private val context: Context) {
             shortcutPackages = prefs[Keys.ShortcutPackages] ?: SmartIslandSettings.Default.shortcutPackages,
             showRecentApps = prefs[Keys.ShowRecentApps] ?: SmartIslandSettings.Default.showRecentApps,
             welcomeDialogShown = prefs[Keys.WelcomeDialogShown] ?: SmartIslandSettings.Default.welcomeDialogShown,
-            showOnLockScreen = prefs[Keys.ShowOnLockScreen] ?: SmartIslandSettings.Default.showOnLockScreen
+            showOnLockScreen = prefs[Keys.ShowOnLockScreen] ?: SmartIslandSettings.Default.showOnLockScreen,
+            lockScreenPrivacy = prefs[Keys.LockScreenPrivacy] ?: SmartIslandSettings.Default.lockScreenPrivacy
         )
     }
 
@@ -74,6 +77,9 @@ class SmartIslandSettingsRepository(private val context: Context) {
     }
     suspend fun setShowOnLockScreen(value: Boolean) = context.smartIslandDataStore.edit {
         it[Keys.ShowOnLockScreen] = value
+    }
+    suspend fun setLockScreenPrivacy(value: String) = context.smartIslandDataStore.edit {
+        it[Keys.LockScreenPrivacy] = value
     }
 
     suspend fun resetPosition() = context.smartIslandDataStore.edit {

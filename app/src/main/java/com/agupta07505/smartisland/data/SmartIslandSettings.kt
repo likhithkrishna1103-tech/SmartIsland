@@ -20,7 +20,8 @@ data class SmartIslandSettings(
     val shortcutPackages: Set<String> = emptySet(),
     val showRecentApps: Boolean = false,
     val welcomeDialogShown: Boolean = false,
-    val showOnLockScreen: Boolean = true
+    val showOnLockScreen: Boolean = false,
+    val lockScreenPrivacy: String = "AppIconOnly"
 ) {
     companion object {
         val Default = SmartIslandSettings()

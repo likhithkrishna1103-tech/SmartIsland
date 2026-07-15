@@ -237,8 +237,14 @@ class SmartIslandOverlayService : AccessibilityService() {
             val viewTreeObserver = view.viewTreeObserver
             val listenerClass = Class.forName("android.view.ViewTreeObserver\$OnComputeInternalInsetsListener")
             val insetsClass = Class.forName("android.view.ViewTreeObserver\$InternalInsetsInfo")
+            
+            // Log fields for troubleshooting if needed
+            android.util.Log.d(TAG, "InternalInsetsInfo fields: " + insetsClass.declaredFields.map { it.name })
+            
             val setTouchableInsetsMethod = insetsClass.getMethod("setTouchableInsets", Int::class.javaPrimitiveType)
-            val touchableRegionField = insetsClass.getField("touchableRegion")
+            val touchableRegionField = insetsClass.getDeclaredField("touchableRegion").apply {
+                isAccessible = true
+            }
             
             // InternalInsetsInfo touchable insets options
             val TOUCHABLE_INSETS_FRAME = 0
@@ -264,12 +270,11 @@ class SmartIslandOverlayService : AccessibilityService() {
                         val settingsVal = viewModel.settings.value
                         val pillWidthPx = (settingsVal.width + 12f) * density
                         val pillHeightPx = (settingsVal.height + 16f) * density
-                        val yOffsetPx = settingsVal.yOffset.dpToPx()
                         
                         val left = ((screenWidth - pillWidthPx) / 2).toInt()
-                        val top = yOffsetPx
+                        val top = 0
                         val right = ((screenWidth + pillWidthPx) / 2).toInt()
-                        val bottom = yOffsetPx + pillHeightPx.toInt()
+                        val bottom = pillHeightPx.toInt()
                         
                         val region = touchableRegionField.get(insets) as android.graphics.Region
                         region.set(left, top, right, bottom)
@@ -293,6 +298,7 @@ class SmartIslandOverlayService : AccessibilityService() {
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         val isLocked = keyguardManager.isKeyguardLocked
         isLockScreenActive = isLocked
+        viewModel.isLocked.value = isLocked
         
         val isHidden = !settings.showOnLockScreen && isLocked
 
