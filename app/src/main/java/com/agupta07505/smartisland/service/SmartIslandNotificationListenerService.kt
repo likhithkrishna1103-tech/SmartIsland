@@ -71,37 +71,62 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
         super.onDestroy()
     }
 
+    private val pendingRemovals = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName == packageName) return
+        android.util.Log.d(TAG, "onNotificationPosted: package=${sbn.packageName}, id=${sbn.id}")
+        
+        // Cancel any pending removal for this key to prevent the notification from being deleted
+        pendingRemovals.remove(sbn.key)?.cancel()
+        
         serviceScope.launch {
             runCatchingLogged(TAG, "NotificationPosted handling failed") {
-                if (!canProcessNotifications()) return@runCatchingLogged
-                if (shouldSuppressFromIsland(sbn)) return@runCatchingLogged
+                val canProcess = canProcessNotifications()
+                val shouldSuppress = shouldSuppressFromIsland(sbn)
+                android.util.Log.d(TAG, "onNotificationPosted async: canProcess=$canProcess, shouldSuppress=$shouldSuppress")
+                if (!canProcess) return@runCatchingLogged
+                if (shouldSuppress) return@runCatchingLogged
                 val overlayStarted = ensureOverlayServiceRunning()
+                android.util.Log.d(TAG, "onNotificationPosted async: overlayStarted=$overlayStarted")
                 handleNotificationPosted(sbn, allowHeadsUpSuppression = overlayStarted)
             }
         }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        runCatchingLogged(TAG, "NotificationRemoved handling failed") {
-            if (sbn.packageName == packageName) return@runCatchingLogged
-            if (suppressedKeys.remove(sbn.key)) {
-                // Do not remove since we canceled it ourselves to suppress the system heads-up pop-up
-                return@runCatchingLogged
+        android.util.Log.d(TAG, "onNotificationRemoved: package=${sbn.packageName}, id=${sbn.id}")
+        
+        // Cancel any existing removal job for this key
+        pendingRemovals.remove(sbn.key)?.cancel()
+        
+        val job = serviceScope.launch {
+            kotlinx.coroutines.delay(350L) // 350ms debounce window
+            runCatchingLogged(TAG, "NotificationRemoved handling failed") {
+                if (sbn.packageName == packageName) return@runCatchingLogged
+                if (suppressedKeys.remove(sbn.key)) {
+                    // Do not remove since we canceled it ourselves to suppress the system heads-up pop-up
+                    return@runCatchingLogged
+                }
+                notificationRepository.removeNotification(sbn.key)
             }
-            notificationRepository.removeNotification(sbn.key)
+            pendingRemovals.remove(sbn.key)
         }
+        pendingRemovals[sbn.key] = job
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        android.util.Log.d(TAG, "onListenerConnected called")
         serviceScope.launch {
             runCatchingLogged(TAG, "ListenerConnected handling failed") {
-                if (!canProcessNotifications()) return@runCatchingLogged
+                val canProcess = canProcessNotifications()
+                android.util.Log.d(TAG, "onListenerConnected async: canProcess=$canProcess")
+                if (!canProcess) return@runCatchingLogged
                 val notifications = activeNotifications
                     .filter { it.packageName != packageName }
                     .filterNot { shouldSuppressFromIsland(it) }
+                android.util.Log.d(TAG, "onListenerConnected async: found ${notifications.size} active notifications")
                 if (notifications.isEmpty()) return@runCatchingLogged
                 notifications.forEach { handleNotificationPosted(it, allowHeadsUpSuppression = false) }
                 ensureOverlayServiceRunning()
@@ -111,7 +136,10 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
 
     private suspend fun canProcessNotifications(): Boolean {
         val settings = repository.settings.first()
-        return settings.enabled && Settings.canDrawOverlays(this)
+        val canDraw = Settings.canDrawOverlays(this)
+        val a11yEnabled = isAccessibilityServiceEnabled()
+        android.util.Log.d(TAG, "canProcessNotifications: settings.enabled=${settings.enabled}, canDrawOverlays=$canDraw, accessibilityEnabled=$a11yEnabled")
+        return settings.enabled && (canDraw || a11yEnabled)
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
@@ -144,6 +172,7 @@ class SmartIslandNotificationListenerService : NotificationListenerService() {
 
         val extras = notification.extras
         val mode = notification.toIslandMode()
+        android.util.Log.d(TAG, "handleNotificationPosted: mode=$mode, title=${extras.getCharSequence(Notification.EXTRA_TITLE)}")
         val isHeadsUp = shouldSuppressSystemHeadsUp(sbn, notification, mode, allowHeadsUpSuppression)
         if (isHeadsUp) {
             suppressSystemNotification(sbn.key)

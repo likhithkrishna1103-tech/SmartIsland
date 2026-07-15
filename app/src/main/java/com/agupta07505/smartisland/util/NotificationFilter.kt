@@ -100,7 +100,7 @@ fun Notification.toIslandMode(): IslandMode {
         // CATEGORY_PROGRESS is used by downloads, uploads, and other progress work.
         // Only classify action-based media notifications when a media session exists.
         category == Notification.CATEGORY_TRANSPORT ||
-            (hasMediaSession && hasMediaAction) -> IslandMode.Music
+            hasMediaSession -> IslandMode.Music
 
         else -> IslandMode.Notification
     }
