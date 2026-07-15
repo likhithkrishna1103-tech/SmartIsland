@@ -33,6 +33,7 @@ class SmartIslandSettingsRepository(private val context: Context) {
         val ShortcutPackages = stringSetPreferencesKey("shortcut_packages")
         val ShowRecentApps = booleanPreferencesKey("show_recent_apps")
         val WelcomeDialogShown = booleanPreferencesKey("welcome_dialog_shown")
+        val ShowOnLockScreen = booleanPreferencesKey("show_on_lock_screen")
     }
 
     val settings: Flow<SmartIslandSettings> = context.smartIslandDataStore.data.map { prefs ->
@@ -48,7 +49,8 @@ class SmartIslandSettingsRepository(private val context: Context) {
             musicVisualizerColor = prefs[Keys.MusicVisualizerColor] ?: SmartIslandSettings.Default.musicVisualizerColor,
             shortcutPackages = prefs[Keys.ShortcutPackages] ?: SmartIslandSettings.Default.shortcutPackages,
             showRecentApps = prefs[Keys.ShowRecentApps] ?: SmartIslandSettings.Default.showRecentApps,
-            welcomeDialogShown = prefs[Keys.WelcomeDialogShown] ?: SmartIslandSettings.Default.welcomeDialogShown
+            welcomeDialogShown = prefs[Keys.WelcomeDialogShown] ?: SmartIslandSettings.Default.welcomeDialogShown,
+            showOnLockScreen = prefs[Keys.ShowOnLockScreen] ?: SmartIslandSettings.Default.showOnLockScreen
         )
     }
 
@@ -69,6 +71,9 @@ class SmartIslandSettingsRepository(private val context: Context) {
     }
     suspend fun setWelcomeDialogShown(value: Boolean) = context.smartIslandDataStore.edit {
         it[Keys.WelcomeDialogShown] = value
+    }
+    suspend fun setShowOnLockScreen(value: Boolean) = context.smartIslandDataStore.edit {
+        it[Keys.ShowOnLockScreen] = value
     }
 
     suspend fun resetPosition() = context.smartIslandDataStore.edit {

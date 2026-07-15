@@ -19,7 +19,8 @@ data class SmartIslandSettings(
     val musicVisualizerColor: Long = 0xFFFF6B9AL,
     val shortcutPackages: Set<String> = emptySet(),
     val showRecentApps: Boolean = false,
-    val welcomeDialogShown: Boolean = false
+    val welcomeDialogShown: Boolean = false,
+    val showOnLockScreen: Boolean = true
 ) {
     companion object {
         val Default = SmartIslandSettings()

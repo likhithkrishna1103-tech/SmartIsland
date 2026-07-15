@@ -353,6 +353,41 @@ fun SmartIslandHomeScreen(
                     modifier = Modifier.padding(top = 10.dp, bottom = 2.dp)
                 )
 
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Show on lock screen",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Keep the Smart Island visible when the device is locked.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = settings.showOnLockScreen,
+                            onCheckedChange = { checked ->
+                                scope.launch { resolvedRepository.setShowOnLockScreen(checked) }
+                            }
+                        )
+                    }
+                }
+
                 SectionRow(
                     title = stringResource(R.string.sec_permissions),
                     description = stringResource(R.string.sec_permissions_desc),

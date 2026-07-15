@@ -9,6 +9,7 @@ package com.agupta07505.smartisland.service
 
 import android.annotation.SuppressLint
 import android.app.ActivityOptions
+import android.app.KeyguardManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -54,22 +55,43 @@ class SmartIslandOverlayService : AccessibilityService() {
     private val overlayOwners = OverlayViewTreeOwners()
     private lateinit var systemEventReceiver: SystemEventReceiver
     private lateinit var viewModel: IslandViewModel
+    private var isLockScreenActive: Boolean = false
 
     private val serviceScope = kotlinx.coroutines.CoroutineScope(
         kotlinx.coroutines.Dispatchers.Main + kotlinx.coroutines.SupervisorJob()
     )
 
+    // Monitor screen state and unlock events to show/hide the island accordingly
     private val screenStateReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
             when (intent.action) {
-                Intent.ACTION_SCREEN_ON -> overlayOwners.resume()
-                Intent.ACTION_SCREEN_OFF -> overlayOwners.pause()
+                Intent.ACTION_SCREEN_ON -> {
+                    overlayOwners.resume()
+                    isLockScreenActive = keyguardManager.isKeyguardLocked
+                    updateWindowLayoutParams(viewModel.expanded.value, viewModel.settings.value)
+                }
+                Intent.ACTION_SCREEN_OFF -> {
+                    overlayOwners.pause()
+                    isLockScreenActive = true
+                    updateWindowLayoutParams(viewModel.expanded.value, viewModel.settings.value)
+                }
+                Intent.ACTION_USER_PRESENT -> {
+                    isLockScreenActive = false
+                    updateWindowLayoutParams(viewModel.expanded.value, viewModel.settings.value)
+                }
             }
         }
     }
 
+    // Fallback sync: check if keyguard locked state changed on window changes
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Required override, no-op
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        val locked = keyguardManager.isKeyguardLocked
+        if (isLockScreenActive != locked) {
+            isLockScreenActive = locked
+            updateWindowLayoutParams(viewModel.expanded.value, viewModel.settings.value)
+        }
     }
 
     override fun onInterrupt() {
@@ -96,23 +118,27 @@ class SmartIslandOverlayService : AccessibilityService() {
             addAction(Intent.ACTION_BATTERY_CHANGED)
         }
         
-        // CRASH FIX: Android 13+/14+ requires explicit export flag
+        // CRASH FIX: Android 13+/14+ requires explicit export flag for system broadcasts
         runCatchingLogged(TAG, "registerReceiver failed") {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(systemEventReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                registerReceiver(systemEventReceiver, filter, Context.RECEIVER_EXPORTED)
             } else {
                 @Suppress("UnspecifiedRegisterReceiverFlag")
                 registerReceiver(systemEventReceiver, filter)
             }
         }
 
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        isLockScreenActive = keyguardManager.isKeyguardLocked
+
         val screenFilter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
         }
         runCatchingLogged(TAG, "registerReceiver screenStateReceiver failed") {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(screenStateReceiver, screenFilter, Context.RECEIVER_NOT_EXPORTED)
+                registerReceiver(screenStateReceiver, screenFilter, Context.RECEIVER_EXPORTED)
             } else {
                 @Suppress("UnspecifiedRegisterReceiverFlag")
                 registerReceiver(screenStateReceiver, screenFilter)
@@ -173,6 +199,12 @@ class SmartIslandOverlayService : AccessibilityService() {
         if (islandView != null) return
         try {
             islandView = ComposeView(this).apply {
+                val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+                val isLocked = keyguardManager.isKeyguardLocked
+                isLockScreenActive = isLocked
+                val isHidden = !viewModel.settings.value.showOnLockScreen && isLocked
+                visibility = if (isHidden) android.view.View.GONE else android.view.View.VISIBLE
+
                 installOverlayViewTreeOwners()
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                 setContent {
@@ -184,6 +216,8 @@ class SmartIslandOverlayService : AccessibilityService() {
                         onOpenFloatingWindow = { openCurrentNotificationInFloatingWindow() }
                     )
                 }
+
+                setupTouchableRegion(this)
             }
             runCatchingLogged(TAG, "windowManager.addView failed") {
                 windowManager.addView(islandView, collapsedParams(viewModel.settings.value))
@@ -196,9 +230,74 @@ class SmartIslandOverlayService : AccessibilityService() {
         }
     }
 
+    // Use reflection to set up OnComputeInternalInsetsListener since it is a hidden system API.
+    // This allows the overlay window to pass through touches outside the pill boundary.
+    private fun setupTouchableRegion(view: ComposeView) {
+        runCatchingLogged(TAG, "Failed to setup touchable region") {
+            val viewTreeObserver = view.viewTreeObserver
+            val listenerClass = Class.forName("android.view.ViewTreeObserver\$OnComputeInternalInsetsListener")
+            val insetsClass = Class.forName("android.view.ViewTreeObserver\$InternalInsetsInfo")
+            val setTouchableInsetsMethod = insetsClass.getMethod("setTouchableInsets", Int::class.javaPrimitiveType)
+            val touchableRegionField = insetsClass.getField("touchableRegion")
+            
+            // InternalInsetsInfo touchable insets options
+            val TOUCHABLE_INSETS_FRAME = 0
+            val TOUCHABLE_INSETS_REGION = 3
+            
+            // Create a dynamic proxy implementation of OnComputeInternalInsetsListener
+            val proxyListener = java.lang.reflect.Proxy.newProxyInstance(
+                classLoader,
+                arrayOf(listenerClass)
+            ) { _, method, args ->
+                if (method.name == "onComputeInternalInsets" && args != null && args.isNotEmpty()) {
+                    val insets = args[0]
+                    val isExpanded = viewModel.expanded.value
+                    if (isExpanded) {
+                        // When expanded, let the entire frame intercept touches so clicking outside collapses it
+                        setTouchableInsetsMethod.invoke(insets, TOUCHABLE_INSETS_FRAME)
+                    } else {
+                        // When collapsed, restrict touch interception to ONLY the pill bounds + padding
+                        setTouchableInsetsMethod.invoke(insets, TOUCHABLE_INSETS_REGION)
+                        
+                        val density = resources.displayMetrics.density
+                        val screenWidth = resources.displayMetrics.widthPixels
+                        val settingsVal = viewModel.settings.value
+                        val pillWidthPx = (settingsVal.width + 12f) * density
+                        val pillHeightPx = (settingsVal.height + 16f) * density
+                        val yOffsetPx = settingsVal.yOffset.dpToPx()
+                        
+                        val left = ((screenWidth - pillWidthPx) / 2).toInt()
+                        val top = yOffsetPx
+                        val right = ((screenWidth + pillWidthPx) / 2).toInt()
+                        val bottom = yOffsetPx + pillHeightPx.toInt()
+                        
+                        val region = touchableRegionField.get(insets) as android.graphics.Region
+                        region.set(left, top, right, bottom)
+                    }
+                }
+                null
+            }
+            
+            val addListenerMethod = viewTreeObserver.javaClass.getMethod(
+                "addOnComputeInternalInsetsListener",
+                listenerClass
+            )
+            addListenerMethod.invoke(viewTreeObserver, proxyListener)
+        }
+    }
+
     private fun updateWindowLayoutParams(expanded: Boolean, settings: SmartIslandSettings) {
         val view = islandView ?: return
         val density = resources.displayMetrics.density
+        
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        val isLocked = keyguardManager.isKeyguardLocked
+        isLockScreenActive = isLocked
+        
+        val isHidden = !settings.showOnLockScreen && isLocked
+
+        view.visibility = if (isHidden) android.view.View.GONE else android.view.View.VISIBLE
+
         val h = if (expanded) {
             WindowManager.LayoutParams.MATCH_PARENT
         } else {
