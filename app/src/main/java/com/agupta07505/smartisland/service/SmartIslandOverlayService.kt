@@ -232,6 +232,9 @@ class SmartIslandOverlayService : AccessibilityService() {
 
     // Use reflection to set up OnComputeInternalInsetsListener since it is a hidden system API.
     // This allows the overlay window to pass through touches outside the pill boundary.
+    // Keep the suppression local: this best-effort workaround is guarded by
+    // runCatchingLogged so unsupported devices fall back without crashing.
+    @SuppressLint("PrivateApi", "SoonBlockedPrivateApi")
     private fun setupTouchableRegion(view: ComposeView) {
         android.util.Log.d(TAG, "setupTouchableRegion: starting registration for view=$view")
         runCatchingLogged(TAG, "Failed to setup touchable region") {
